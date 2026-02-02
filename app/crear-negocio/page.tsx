@@ -6,17 +6,21 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
 // Types
-type DiaHorario = {
-  dia: string;
-  desde: string;
-  hasta: string;
-};
+
 
 type Servicio = {
   nombre: string;
   precio: string;
   duracion: string;
 };
+
+type DiaHorario = {
+  dia: string;
+  activo: boolean;
+  desde: string;
+  hasta: string;
+};
+
 
 const DIAS_SEMANA = [
   "Lunes",
@@ -42,9 +46,7 @@ export default function CrearNegocioPage() {
     { nombre: "", precio: "", duracion: "" },
   ]);
   
-  const [horarios, setHorarios] = useState<DiaHorario[]>([
-    { dia: "Lunes", desde: "", hasta: "" },
-  ]);
+  
   
   const [duracionTurno, setDuracionTurno] = useState("");
   const [intervaloTurno, setIntervaloTurno] = useState("");
@@ -53,6 +55,16 @@ export default function CrearNegocioPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [mostrarPreview, setMostrarPreview] = useState(false);
+  const [horariosDia, setHorariosDia] = useState<DiaHorario[]>([
+    { dia: "Lunes", activo: false, desde: "", hasta: "" },
+    { dia: "Martes", activo: false, desde: "", hasta: "" },
+    { dia: "Miércoles", activo: false, desde: "", hasta: "" },
+    { dia: "Jueves", activo: false, desde: "", hasta: "" },
+    { dia: "Viernes", activo: false, desde: "", hasta: "" },
+    { dia: "Sábado", activo: false, desde: "", hasta: "" },
+    { dia: "Domingo", activo: false, desde: "", hasta: "" },
+  ]);
+
 
   // Calcular intervalo automático basado en duración
   const calcularIntervaloAutomatico = (duracion: string) => {
@@ -119,22 +131,10 @@ export default function CrearNegocioPage() {
   };
 
   // Funciones para horarios
-  const agregarDia = () => {
-    setHorarios([...horarios, { dia: "", desde: "", hasta: "" }]);
-  };
-
-  const eliminarDia = (index: number) => {
-    setHorarios(horarios.filter((_, i) => i !== index));
-  };
-
-  const actualizarHorario = (
-    index: number,
-    campo: keyof DiaHorario,
-    valor: string
-  ) => {
-    const copia = [...horarios];
-    copia[index][campo] = valor;
-    setHorarios(copia);
+  const toggleDia = (index: number) => {
+    const copia = [...horariosDia];
+    copia[index].activo = !copia[index].activo;
+    setHorariosDia(copia);
   };
 
   // Validación
@@ -164,11 +164,16 @@ export default function CrearNegocioPage() {
     }
 
     // Validar que haya al menos un horario completo
-    const horariosValidos = horarios.filter(
-      h => h.dia && h.desde && h.hasta
-    );
-    if (horariosValidos.length === 0) {
-      newErrors.horarios = "Debes agregar al menos un horario de atención";
+    const diasActivos = horariosDia.filter(d => d.activo);
+
+    if (diasActivos.length === 0) {
+      newErrors.horarios = "Debes seleccionar al menos un día de atención";
+    } else {
+      // Verificar que todos los días activos tengan horario
+      const diasSinHorario = diasActivos.filter(d => !d.desde || !d.hasta);
+      if (diasSinHorario.length > 0) {
+        newErrors.horarios = "Debes indicar el horario para todos los días seleccionados";
+      }
     }
 
     if (!duracionTurno) {
@@ -190,13 +195,16 @@ export default function CrearNegocioPage() {
     setLoading(true);
 
     try {
-      // Filtrar solo servicios y horarios completos
+      // Filtrar solo servicios completos
       const serviciosCompletos = servicios.filter(
         s => s.nombre.trim() && s.precio && s.duracion
       );
-      const horariosCompletos = horarios.filter(
-        h => h.dia && h.desde && h.hasta
-      );
+      // Construir horarios completos desde días activos
+      const horariosCompletos = horariosDia.filter(d => d.activo).map(d => ({
+        dia: d.dia,
+        desde: d.desde,
+        hasta: d.hasta
+      }));
 
       // Generar slug único para el link
       const slug = nombreNegocio
@@ -572,7 +580,7 @@ export default function CrearNegocioPage() {
                   ℹ️ Intervalo calculado: <strong>{intervaloTurno} minutos</strong>
                   <br />
                   <span className="text-xs">
-                    Ejemplo: Turno de {duracionTurno} min + {intervaloTurno} min de intervalo = {parseInt(duracionTurno) + parseInt(intervaloTurno || "0")} min total
+                    Total: {(parseInt(duracionTurno) + parseInt(intervaloTurno || "0"))} min
                   </span>
                 </div>
               )}
@@ -582,76 +590,86 @@ export default function CrearNegocioPage() {
           {/* ========================= */}
           {/* HORARIOS */}
           {/* ========================= */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-800">
-              Horarios de atención *
-            </h2>
-            <div className="mt-4 space-y-4">
-              {horarios.map((h, index) => (
-                <Card key={index}>
-                  <CardContent className="p-4 space-y-3">
-                    <select
-                      className="input-base"
-                      value={h.dia}
-                      onChange={(e) =>
-                        actualizarHorario(index, "dia", e.target.value)
-                      }
-                    >
-                      <option value="">Seleccionar día</option>
-                      {DIAS_SEMANA.map((dia) => (
-                        <option key={dia} value={dia}>
-                          {dia}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <label className="block text-xs text-gray-600 mb-1">
-                          Desde
-                        </label>
-                        <Input
-                          type="time"
-                          value={h.desde}
-                          className="input-base"
-                          onChange={(e) =>
-                            actualizarHorario(index, "desde", e.target.value)
-                          }
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-xs text-gray-600 mb-1">
-                          Hasta
-                        </label>
-                        <Input
-                          type="time"
-                          value={h.hasta}
-                          className="input-base"
-                          onChange={(e) =>
-                            actualizarHorario(index, "hasta", e.target.value)
-                          }
-                        />
-                      </div>
-                    </div>
-                    {horarios.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={() => eliminarDia(index)}
-                      >
-                        Eliminar día
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-              <Button type="button" variant="outline" onClick={agregarDia}>
-                + Agregar día
-              </Button>
+          {/* ========================= */}
+{/* HORARIOS DE ATENCIÓN */}
+{/* ========================= */}
+<section>
+  <h2 className="text-xl font-semibold text-gray-800">
+    Horarios de atención *
+  </h2>
+
+  <p className="text-sm text-gray-600 mt-1">
+    Seleccioná los días y el horario en el que atendés
+  </p>
+
+  {/* DÍAS */}
+  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+    {horariosDia.map((d, index) => (
+      <button
+        key={d.dia}
+        type="button"
+        onClick={() => toggleDia(index)}
+        className={`
+          px-4 py-2 rounded-lg border text-sm font-medium transition
+          ${
+            d.activo
+              ? "bg-indigo-600 text-white border-indigo-600"
+              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+          }
+        `}
+      >
+        {d.dia}
+      </button>
+    ))}
+  </div>
+
+  {/* HORARIOS POR DÍA */}
+  {horariosDia.filter(d => d.activo).length > 0 && (
+    <div className="mt-6 space-y-4">
+      <h3 className="text-lg font-medium text-gray-800">Horarios por día</h3>
+      {horariosDia.filter(d => d.activo).map((dia) => {
+        const originalIndex = horariosDia.findIndex(d => d.dia === dia.dia);
+        return (
+          <div key={dia.dia} className="p-4 bg-gray-50 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">{dia.dia}</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Desde
+                </label>
+                <Input
+                  type="time"
+                  className="input-base"
+                  value={dia.desde}
+                  onChange={(e) => {
+                    const copia = [...horariosDia];
+                    copia[originalIndex].desde = e.target.value;
+                    setHorariosDia(copia);
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Hasta
+                </label>
+                <Input
+                  type="time"
+                  className="input-base"
+                  value={dia.hasta}
+                  onChange={(e) => {
+                    const copia = [...horariosDia];
+                    copia[originalIndex].hasta = e.target.value;
+                    setHorariosDia(copia);
+                  }}
+                />
+              </div>
             </div>
-            {errors.horarios && (
-              <p className="text-red-500 text-sm mt-2">{errors.horarios}</p>
-            )}
-          </section>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</section>
 
           {/* ========================= */}
           {/* BOTONES FINALES */}
@@ -804,14 +822,14 @@ export default function CrearNegocioPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">
                     🕐 Horarios de atención
                   </h3>
-                  {horarios.filter(h => h.dia && h.desde && h.hasta).length === 0 ? (
+                  {horariosDia.filter(d => d.activo && d.desde && d.hasta).length === 0 ? (
                     <p className="text-gray-500 text-sm">
                       Aún no configuraste horarios
                     </p>
                   ) : (
                     <div className="grid md:grid-cols-2 gap-2">
-                      {horarios
-                        .filter(h => h.dia && h.desde && h.hasta)
+                      {horariosDia
+                        .filter(d => d.activo && d.desde && d.hasta)
                         .map((horario, index) => (
                           <div
                             key={index}
@@ -857,7 +875,7 @@ export default function CrearNegocioPage() {
                 </div>
 
                 {/* Ejemplo de horarios disponibles */}
-                {duracionTurno && horarios.some(h => h.dia && h.desde && h.hasta) && (
+                {duracionTurno && horariosDia.some(d => d.activo && d.desde && d.hasta) && (
                   <div className="mt-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">
                       📅 Ejemplo de horarios generados
@@ -866,7 +884,7 @@ export default function CrearNegocioPage() {
                       Así verán los clientes los horarios disponibles para reservar:
                     </p>
                     {(() => {
-                      const primerHorario = horarios.find(h => h.dia && h.desde && h.hasta);
+                      const primerHorario = horariosDia.find(d => d.activo && d.desde && d.hasta);
                       if (!primerHorario) return null;
 
                       const [horaInicio, minInicio] = primerHorario.desde.split(":").map(Number);

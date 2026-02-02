@@ -85,6 +85,7 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
         telefono: "+54 9 11 1234-5678",
         direccion: "Av. Corrientes 1234, CABA",
         email: "contacto@peluqueria.com",
+        imagenUrl: "/emilianita.png",
         servicios: [
           { id: "1", nombre: "Corte de cabello", precio: "5000", duracion: "30" },
           { id: "2", nombre: "Tintura", precio: "8000", duracion: "60" },
@@ -544,7 +545,7 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
                     <p>
                       <strong>Negocio:</strong> {negocio.nombre}
                     </p>
-                    <p>
+                    <p> 
                       <strong>Servicio:</strong>{" "}
                       {negocio.servicios.find(s => s.id === servicioSeleccionado)?.nombre}
                     </p>

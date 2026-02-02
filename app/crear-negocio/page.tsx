@@ -401,7 +401,7 @@ export default function CrearNegocioPage() {
                             setImagenPreview("");
                             setImagenFile(null);
                           }}
-                          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+                          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition cursor-pointer"
                         >
                           🗑️ Eliminar
                         </button>

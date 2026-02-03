@@ -5,6 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
+import { supabase } from "@/lib/supabaseClient";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 // Types
 
 
@@ -46,7 +49,8 @@ export default function CrearNegocioPage() {
     { nombre: "", precio: "", duracion: "" },
   ]);
   
-  
+  const router = useRouter();
+
   
   const [duracionTurno, setDuracionTurno] = useState("");
   const [intervaloTurno, setIntervaloTurno] = useState("");

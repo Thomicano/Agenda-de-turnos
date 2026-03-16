@@ -1,23 +1,24 @@
 // app/[slug]/page.tsx
 import ReservarTurno from "@/components/ReservarTurno";
 
-export default function NegocioPage({ 
-  params 
-}: { 
-  params: { slug: string } 
-}) {
-  return <ReservarTurno slug={params.slug} />;
+type PageProps = {
+  params: Promise<{
+    slug: string;
+  }>;
+};
+
+export default async function NegocioPage({ params }: PageProps) {
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug;
+  return <ReservarTurno slug={slug} />;
 }
 
-// Opcional: Generar metadata dinámica
-export async function generateMetadata({ 
-  params 
-}: { 
-  params: { slug: string } 
-}) {
-  // Aquí podrías consultar el nombre del negocio desde Supabase
+export async function generateMetadata({ params }: PageProps) {
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug;
+
   return {
-    title: `Reservar turno - ${params.slug}`,
+    title: `Reservar turno - ${slug}`,
     description: "Reserva tu turno de manera fácil y rápida",
   };
 }

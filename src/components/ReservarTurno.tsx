@@ -5,19 +5,27 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
+import { supabase } from "@/lib/supabaseClient";
 
 // Types
 type Servicio = {
   id?: string;
   nombre: string;
-  precio: string;
-  duracion: string;
+  precio: number;
+  duracion_min: number;
 };
 
 type DiaHorario = {
   dia: string;
   desde: string;
   hasta: string;
+};
+
+type HorarioConfig = {
+  dia_semana: number;
+  esta_abierto: boolean;
+  hora_apertura: string;
+  hora_cierre: string;
 };
 
 type Negocio = {
@@ -27,11 +35,11 @@ type Negocio = {
   telefono: string;
   direccion: string;
   email: string;
-  imagenUrl?: string;
-  servicios: Servicio[];
+  imagen_url?: string;
+  
   horarios: DiaHorario[];
-  duracionTurno: number;
-  intervaloTurno: number;
+  duracion_turno: number;
+  intervalo_turno: number;
 };
 
 type HorarioDisponible = {
@@ -41,13 +49,14 @@ type HorarioDisponible = {
 
 // Props del componente
 type ReservarTurnoProps = {
-  slug: string; // El identificador único del negocio
+  slug: string;
 };
 
 export default function ReservarTurno({ slug }: ReservarTurnoProps) {
   // Estados
   const [negocio, setNegocio] = useState<Negocio | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
   
   // Estados del formulario
   const [servicioSeleccionado, setServicioSeleccionado] = useState<string>("");
@@ -60,101 +69,139 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
   const [telefonoCliente, setTelefonoCliente] = useState("");
   const [emailCliente, setEmailCliente] = useState("");
   
-  const [paso, setPaso] = useState(1); // 1: Servicio, 2: Fecha/Hora, 3: Datos personales, 4: Confirmación
+  const [paso, setPaso] = useState(1);
   const [reservando, setReservando] = useState(false);
+
+  //servicios de carga del negocio
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [horariosConfig, setHorariosConfig] = useState<HorarioConfig[]>([]);
+
 
   // Cargar datos del negocio
   useEffect(() => {
     cargarNegocio();
-  }, [slug]);
+  }, [slug]); // ✅ Agregado slug a las dependencias
 
   const cargarNegocio = async () => {
     try {
-      // AQUÍ irá la consulta a Supabase
-      // const { data, error } = await supabase
-      //   .from('negocios')
-      //   .select('*')
-      //   .eq('slug', slug)
-      //   .single()
+      setLoading(true);
+      setError("");
 
-      // Por ahora datos de ejemplo
-      const negocioEjemplo: Negocio = {
-        id: "1",
-        nombre: "Peluquería Elegante",
-        rubro: "Peluquería",
-        telefono: "+54 9 11 1234-5678",
-        direccion: "Av. Corrientes 1234, CABA",
-        email: "contacto@peluqueria.com",
-        imagenUrl: "/emilianita.png",
-        servicios: [
-          { id: "1", nombre: "Corte de cabello", precio: "5000", duracion: "30" },
-          { id: "2", nombre: "Tintura", precio: "8000", duracion: "60" },
-          { id: "3", nombre: "Brushing", precio: "3000", duracion: "30" },
-        ],
-        horarios: [
-          { dia: "Lunes", desde: "09:00", hasta: "18:00" },
-          { dia: "Martes", desde: "09:00", hasta: "18:00" },
-          { dia: "Miércoles", desde: "09:00", hasta: "18:00" },
-          { dia: "Jueves", desde: "09:00", hasta: "18:00" },
-          { dia: "Viernes", desde: "09:00", hasta: "20:00" },
-          { dia: "Sábado", desde: "10:00", hasta: "16:00" },
-        ],
-        duracionTurno: 30,
-        intervaloTurno: 5,
-      };
+      console.log("🔍 Buscando negocio con slug:", slug);
 
-      setNegocio(negocioEjemplo);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error al cargar negocio:", error);
+      const { data, error: supabaseError } = await supabase
+        .from("negocios")
+        .select("*")
+        .eq("slug", slug)
+        .maybeSingle();
+      
+      if (supabaseError) {
+        console.error("❌ Error de Supabase:", supabaseError);
+        setError(supabaseError.message);
+        setNegocio(null);
+      } else if (!data) {
+        console.error("❌ No se encontró el negocio");
+        setNegocio(null);
+      } else {
+        console.log("✅ Negocio encontrado:", data);
+
+      setNegocio(data as Negocio);
+      await cargarServicios(data.id);
+      await cargarHorariosConfig(data.id);
+
+      }
+    } catch (err) {
+      console.error("❌ Error general:", err);
+      setError("Error al cargar el negocio");
+      setNegocio(null);
+    } finally {
       setLoading(false);
     }
+  };
+  const cargarServicios = async (negocioId: string) => {
+    const { data, error } = await supabase
+      .from("servicios")
+      .select("*")
+      .eq("negocio_id", negocioId);
+
+    if (error) {
+      console.error("Error cargando servicios:", error);
+      return;
+    }
+    setServicios(data || []);
+  };
+
+  const cargarHorariosConfig = async (negocioId: string) => {
+    const { data, error } = await supabase
+      .from("horarios_config")
+      .select("*")
+      .eq("negocio_id", negocioId);
+
+    if (error) {
+      console.error("Error cargando horarios:", error);
+      return;
+    }
+    console.log("👉 Datos de horarios_config para este negocio:", data);
+    setHorariosConfig(data || []);
   };
 
   // Generar horarios disponibles para una fecha
   useEffect(() => {
-    if (fechaSeleccionada && negocio) {
+    if (fechaSeleccionada && negocio && horariosConfig.length > 0) {
       generarHorarios();
     }
-  }, [fechaSeleccionada, negocio]);
+  }, [fechaSeleccionada, negocio, horariosConfig]);
 
-  const generarHorarios = () => {
-    if (!fechaSeleccionada || !negocio) return;
+  const generarHorarios = async () => {
+    if (!fechaSeleccionada || !negocio || horariosConfig.length === 0) return;
 
-    const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const diaSemana = diasSemana[fechaSeleccionada.getDay()];
+    const diaSemana = fechaSeleccionada.getDay();
+    const configDia = horariosConfig.find(h => h.dia_semana === diaSemana);
 
-    // Buscar el horario de ese día
-    const horarioDia = negocio.horarios.find(h => h.dia === diaSemana);
-
-    if (!horarioDia) {
+    if (!configDia || !configDia.esta_abierto || !configDia.hora_apertura || !configDia.hora_cierre) {
       setHorariosDisponibles([]);
       return;
     }
 
     // Generar slots de tiempo
     const slots: HorarioDisponible[] = [];
-    const [horaInicio, minInicio] = horarioDia.desde.split(":").map(Number);
-    const [horaFin, minFin] = horarioDia.hasta.split(":").map(Number);
+    const [horaInicio, minInicio] = configDia.hora_apertura.split(":").map(Number);
+    const [horaFin, minFin] = configDia.hora_cierre.split(":").map(Number);
 
-    let horaActual = horaInicio * 60 + minInicio; // minutos desde medianoche
+    let horaActual = horaInicio * 60 + minInicio;
     const horaFinMinutos = horaFin * 60 + minFin;
+
+    // Consultar turnos ocupados para esta fecha
+    const fechaString = fechaSeleccionada.toISOString().split('T')[0];
+    
+    const { data: turnosOcupados } = await supabase
+      .from('turnos')
+      .select('hora')
+      .eq('negocio_id', negocio.id)
+      .eq('fecha', fechaString)
+      .eq('estado', 'confirmado');
+
+    const horasOcupadas = new Set(
+      turnosOcupados?.map(t => t.hora) || []
+    );
 
     while (horaActual < horaFinMinutos) {
       const horas = Math.floor(horaActual / 60);
       const minutos = horaActual % 60;
       const horaFormato = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
 
-      // AQUÍ verificarías en Supabase si el horario está ocupado
-      // Por ahora todos disponibles
-      const disponible = Math.random() > 0.3; // 70% disponibles (simulado)
+      const disponible = !horasOcupadas.has(horaFormato);
 
       slots.push({
         hora: horaFormato,
         disponible: disponible,
       });
-
-      horaActual += negocio.duracionTurno + negocio.intervaloTurno;
+      const servicio = servicios.find(
+        (s) => (s.id || s.nombre) === servicioSeleccionado
+      );
+      const duracion = servicio?.duracion_min ?? negocio.duracion_turno;
+      horaActual += duracion + negocio.intervalo_turno;
+      
     }
 
     setHorariosDisponibles(slots);
@@ -162,12 +209,12 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
 
   // Validar que el día esté en los horarios del negocio
   const esDiaDisponible = (date: Date) => {
-    if (!negocio) return false;
+    if (!negocio || horariosConfig.length === 0) return false;
     
-    const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const diaSemana = diasSemana[date.getDay()];
+    const diaSemana = date.getDay();
+    const configDia = horariosConfig.find(h => h.dia_semana === diaSemana);
     
-    return negocio.horarios.some(h => h.dia === diaSemana);
+    return configDia ? configDia.esta_abierto : false;
   };
 
   // Confirmar reserva
@@ -180,27 +227,37 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
     setReservando(true);
 
     try {
+      const fechaString = fechaSeleccionada?.toISOString().split('T')[0];
+
       const reserva = {
-        negocioId: negocio?.id,
-        servicioId: servicioSeleccionado,
-        fecha: fechaSeleccionada,
+        negocio_id: negocio?.id,
+        servicio_id: servicioSeleccionado,
+        fecha: fechaString,
         hora: horarioSeleccionado,
-        clienteNombre: nombreCliente,
-        clienteTelefono: telefonoCliente,
-        clienteEmail: emailCliente,
+        cliente_nombre: nombreCliente,
+        cliente_telefono: telefonoCliente,
+        cliente_email: emailCliente,
         estado: "confirmado",
       };
 
-      console.log("Reserva a guardar:", reserva);
+      console.log("📝 Guardando reserva:", reserva);
 
-      // AQUÍ irá la inserción en Supabase
-      // const { data, error } = await supabase.from('turnos').insert([reserva])
+      const { data, error } = await supabase
+        .from('turnos')
+        .insert([reserva])
+        .select();
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (error) {
+        console.error("❌ Error al guardar turno:", error);
+        alert("Hubo un error al confirmar tu turno. Intenta de nuevo.");
+        return;
+      }
 
+      console.log("✅ Turno guardado:", data);
       setPaso(4);
+
     } catch (error) {
-      console.error("Error al confirmar reserva:", error);
+      console.error("❌ Error al confirmar reserva:", error);
       alert("Hubo un error al confirmar tu turno. Intenta de nuevo.");
     } finally {
       setReservando(false);
@@ -210,21 +267,35 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Cargando...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
       </div>
     );
   }
 
-  if (!negocio) {
+  if (error || !negocio) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-4xl">❌</span>
+            </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Negocio no encontrado
             </h2>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-4">
               El link que ingresaste no es válido o el negocio ya no existe.
+            </p>
+            {error && (
+              <p className="text-sm text-red-600 bg-red-50 p-3 rounded">
+                Error: {error}
+              </p>
+            )}
+            <p className="text-sm text-gray-500 mt-4">
+              Slug buscado: <code className="bg-gray-100 px-2 py-1 rounded">{slug}</code>
             </p>
           </CardContent>
         </Card>
@@ -239,12 +310,16 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
         <Card className="mb-6">
           <CardContent className="p-6">
             <div className="flex items-start gap-6">
-              {negocio.imagenUrl && (
+              {negocio.imagen_url ? (
                 <img
-                  src={negocio.imagenUrl}
+                  src={negocio.imagen_url}
                   alt={negocio.nombre}
                   className="w-24 h-24 rounded-lg object-cover"
                 />
+              ) : (
+                <div className="w-24 h-24 rounded-lg bg-indigo-100 flex items-center justify-center text-4xl">
+                  🏪
+                </div>
               )}
               <div className="flex-1">
                 <h1 className="text-3xl font-bold text-gray-900">
@@ -306,40 +381,44 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
                   Elegí un servicio
                 </h2>
-                <div className="space-y-3">
-                  {negocio.servicios.map((servicio) => (
-                    <button
-                      key={servicio.id}
-                      onClick={() => {
-                        setServicioSeleccionado(servicio.id || "");
-                        setPaso(2);
-                      }}
-                      className={`
-                        w-full p-4 rounded-lg border-2 text-left transition
-                        hover:border-indigo-600 hover:bg-indigo-50
-                        ${
-                          servicioSeleccionado === servicio.id
-                            ? "border-indigo-600 bg-indigo-50"
-                            : "border-gray-200"
-                        }
-                      `}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {servicio.nombre}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {servicio.duracion} minutos
+                {servicios.length === 0 ? (
+                  <p className="text-gray-500">No hay servicios disponibles</p>
+                ) : (
+                  <div className="space-y-3">
+                    {servicios.map((servicio, index) => (
+                      <button
+                        key={servicio.id || index}
+                        onClick={() => {
+                          setServicioSeleccionado(servicio.id || servicio.nombre);
+                          setPaso(2);
+                        }}
+                        className={`
+                          w-full p-4 rounded-lg border-2 text-left transition
+                          hover:border-indigo-600 hover:bg-indigo-50
+                          ${
+                            servicioSeleccionado === (servicio.id || servicio.nombre)
+                              ? "border-indigo-600 bg-indigo-50"
+                              : "border-gray-200"
+                          }
+                        `}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">
+                              {servicio.nombre}
+                            </h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {servicio.duracion_min} minutos
+                            </p>
+                          </div>
+                          <p className="text-lg font-bold text-indigo-600">
+                            ${servicio.precio}
                           </p>
                         </div>
-                        <p className="text-lg font-bold text-indigo-600">
-                          ${servicio.precio}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -484,7 +563,10 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
                   <div className="text-sm text-gray-600 space-y-1">
                     <p>
                       <strong>Servicio:</strong>{" "}
-                      {negocio.servicios.find(s => s.id === servicioSeleccionado)?.nombre}
+                      {servicios.find(s => (s.id || s.nombre) === servicioSeleccionado)?.nombre}
+                    </p>
+                    <p>
+                      {servicios.find(s => (s.id || s.nombre) === servicioSeleccionado)?.duracion_min} minutos
                     </p>
                     <p>
                       <strong>Fecha:</strong>{" "}
@@ -495,7 +577,7 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
                     </p>
                     <p>
                       <strong>Precio:</strong> $
-                      {negocio.servicios.find(s => s.id === servicioSeleccionado)?.precio}
+                      {servicios.find(s => (s.id || s.nombre) === servicioSeleccionado)?.precio}
                     </p>
                   </div>
                 </div>
@@ -545,9 +627,9 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
                     <p>
                       <strong>Negocio:</strong> {negocio.nombre}
                     </p>
-                    <p> 
+                    <p>
                       <strong>Servicio:</strong>{" "}
-                      {negocio.servicios.find(s => s.id === servicioSeleccionado)?.nombre}
+                      {servicios.find(s => (s.id || s.nombre) === servicioSeleccionado)?.nombre}
                     </p>
                     <p>
                       <strong>Fecha:</strong>{" "}

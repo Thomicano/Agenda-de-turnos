@@ -237,8 +237,8 @@ export default function CrearNegocioPage() {
       console.log("Datos a guardar:", datosNegocio);
 
       // AQUÍ irá la integración con Supabase
-      // const { data, error } = await supabase.from('negocios').insert([datosNegocio])
-
+      const { data, error } = await supabase.from('negocios').insert([datosNegocio])
+              
       // Por ahora simulamos éxito
       await new Promise(resolve => setTimeout(resolve, 1000));
 

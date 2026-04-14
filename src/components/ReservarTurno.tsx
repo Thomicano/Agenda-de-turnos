@@ -163,15 +163,18 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
       return;
     }
 
-    // Generar slots de tiempo
     const slots: HorarioDisponible[] = [];
     const [horaInicio, minInicio] = configDia.hora_apertura.split(":").map(Number);
     const [horaFin, minFin] = configDia.hora_cierre.split(":").map(Number);
 
-    let horaActual = horaInicio * 60 + minInicio;
+    let horaActualMinutos = horaInicio * 60 + minInicio;
     const horaFinMinutos = horaFin * 60 + minFin;
 
-    // Consultar turnos ocupados para esta fecha
+    // --- Lógica para NO mostrar horas pasadas si es HOY ---
+    const ahora = new Date();
+    const esHoy = fechaSeleccionada.toDateString() === ahora.toDateString();
+    const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+
     const fechaString = fechaSeleccionada.toISOString().split('T')[0];
     
     const { data: turnosOcupados } = await supabase
@@ -179,29 +182,32 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
       .select('hora')
       .eq('negocio_id', negocio.id)
       .eq('fecha', fechaString)
-      .eq('estado', 'confirmado');
+      .neq('estado', 'cancelado'); // Traemos todo lo que NO esté cancelado
 
+    // Normalizamos las horas ocupadas a formato "HH:mm"
     const horasOcupadas = new Set(
-      turnosOcupados?.map(t => t.hora) || []
+      turnosOcupados?.map(t => t.hora.substring(0, 5)) || []
     );
 
-    while (horaActual < horaFinMinutos) {
-      const horas = Math.floor(horaActual / 60);
-      const minutos = horaActual % 60;
+    const servicio = servicios.find(s => (s.id || s.nombre) === servicioSeleccionado);
+    // Valor por defecto de 30 min si todo lo demás falla para evitar bucles infinitos
+    const duracion = servicio?.duracion_min || negocio.duracion_turno || 30;
+
+    while (horaActualMinutos + duracion <= horaFinMinutos) {
+      const horas = Math.floor(horaActualMinutos / 60);
+      const minutos = horaActualMinutos % 60;
       const horaFormato = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
 
-      const disponible = !horasOcupadas.has(horaFormato);
+      // VALIDACIÓN DOBLE: ¿Está ocupado? Y si es hoy, ¿ya pasó la hora?
+      const ocupado = horasOcupadas.has(horaFormato);
+      const yaPaso = esHoy && (horaActualMinutos <= minutosAhora + 15); // Margen de 15 min para que no reserven algo "ya"
 
       slots.push({
         hora: horaFormato,
-        disponible: disponible,
+        disponible: !ocupado && !yaPaso,
       });
-      const servicio = servicios.find(
-        (s) => (s.id || s.nombre) === servicioSeleccionado
-      );
-      const duracion = servicio?.duracion_min ?? negocio.duracion_turno;
-      horaActual += duracion + negocio.intervalo_turno;
-      
+
+      horaActualMinutos += duracion + (negocio.intervalo_turno || 0);
     }
 
     setHorariosDisponibles(slots);

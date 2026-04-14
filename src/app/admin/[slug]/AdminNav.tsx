@@ -6,6 +6,7 @@ import { Calendar, Scissors, Settings, Home, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import BusinessSwitcher from "./BusinessSwitcher";
 
 export default function AdminNav() {
   const params = useParams();
@@ -36,7 +37,7 @@ export default function AdminNav() {
     : [];
 
   const NavLinks = () => (
-    <nav className="space-y-2 flex flex-col mt-6">
+    <nav className="space-y-2 flex flex-col mt-4">
       {!slugValido ? (
         <Link
           href="/"
@@ -83,12 +84,18 @@ export default function AdminNav() {
           </SheetTrigger>
           <SheetContent side="left" className="w-72 bg-white p-6 border-r">
             <SheetHeader>
-               <SheetTitle className="text-2xl font-bold tracking-tight text-gray-800 text-left border-b pb-4">
+               <SheetTitle className="text-2xl font-bold tracking-tight text-gray-800 text-left border-b pb-4 mb-4">
                  Panel Admin
                </SheetTitle>
             </SheetHeader>
+            
+            {/* === 2A. SWITCHER EN MOBILE === */}
+            <div className="mb-2">
+              <BusinessSwitcher />
+            </div>
+
             {!slugValido && (
-              <p className="text-sm text-amber-600 mt-4">
+              <p className="text-sm text-amber-600 mt-2">
                 Seleccioná un negocio desde la URL.
               </p>
             )}
@@ -99,11 +106,17 @@ export default function AdminNav() {
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r min-h-screen p-6 sticky top-0 z-10">
-        <h2 className="text-2xl font-bold tracking-tight text-gray-800 border-b pb-4">
+        <h2 className="text-2xl font-bold tracking-tight text-gray-800 border-b pb-4 mb-4">
           Panel Admin
         </h2>
+        
+        {/* === 2B. SWITCHER EN DESKTOP === */}
+        <div className="mb-2">
+          <BusinessSwitcher />
+        </div>
+
         {!slugValido && (
-          <p className="text-sm text-amber-600 mt-4">
+          <p className="text-sm text-amber-600 mt-2">
             Seleccioná un negocio desde la URL.
           </p>
         )}

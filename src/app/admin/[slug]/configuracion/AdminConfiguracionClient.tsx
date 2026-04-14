@@ -8,6 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { AdminPageLayout } from "@/components/AdminPageLayout";
 
+// 🟢 IMPORTAMOS EL NUEVO BOTÓN
+import BotonCerrarSesion from "@/components/BotonCerrarSesion"; 
+
 // 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
 const NOMBRES_DIAS = [
   "Domingo",
@@ -80,11 +83,11 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
           })
         );
       }
-      setLoading(false);
+      loading && setLoading(false);
     };
 
     fetchHorarios();
-  }, [negocioId]);
+  }, [negocioId, loading]);
 
   // Guardar configuración
   const guardarConfiguracion = async () => {
@@ -101,8 +104,7 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
 
     console.log("DATOS A GUARDAR:", payload);
 
-    // Upsert requiere un conflicto clave. Normalmente negocio_id y dia_semana si definimos llave compuesta.
-    // Asumiremos que Supabase lo auto-resuelva sobre los identificadores unicos configurados.
+    // Upsert requiere un conflicto clave.
     const { error } = await supabase.from("horarios_config").upsert(payload, {
       onConflict: 'negocio_id,dia_semana'
     });
@@ -130,61 +132,79 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
       title="Configuración de Horarios"
       subtitle="Habilitá los días que tu negocio atiende y ajustá sus horas."
     >
+      <div className="space-y-6">
+        {/* TARJETA 1: HORARIOS (La que ya tenías) */}
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            {horarios.map((dia) => (
+              <div
+                key={dia.dia_semana}
+                className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 md:p-3 rounded-lg border ${
+                  dia.esta_abierto ? "bg-white border-indigo-100" : "bg-gray-50 border-gray-100 text-gray-500"
+                }`}
+              >
+                <div className="flex items-center gap-3 w-full md:w-1/3">
+                  <Switch
+                    checked={dia.esta_abierto}
+                    onCheckedChange={(val) =>
+                      actualizarDia(dia.dia_semana, "esta_abierto", val)
+                    }
+                  />
+                  <span className="font-medium whitespace-nowrap">
+                    {NOMBRES_DIAS[dia.dia_semana]}
+                  </span>
+                </div>
 
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          {horarios.map((dia) => (
-            <div
-              key={dia.dia_semana}
-              className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 md:p-3 rounded-lg border ${
-                dia.esta_abierto ? "bg-white border-indigo-100" : "bg-gray-50 border-gray-100 text-gray-500"
-              }`}
+                <div className="flex items-center gap-2 w-full md:w-auto md:flex-1 justify-between md:justify-end">
+                  <Input
+                    type="time"
+                    className="flex-1 md:w-[120px] md:flex-none"
+                    value={dia.hora_apertura}
+                    disabled={!dia.esta_abierto}
+                    onChange={(e) =>
+                      actualizarDia(dia.dia_semana, "hora_apertura", e.target.value)
+                    }
+                  />
+                  <span className="text-sm font-medium flex-shrink-0">a</span>
+                  <Input
+                    type="time"
+                    className="flex-1 md:w-[120px] md:flex-none"
+                    value={dia.hora_cierre}
+                    disabled={!dia.esta_abierto}
+                    onChange={(e) =>
+                      actualizarDia(dia.dia_semana, "hora_cierre", e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+            ))}
+
+            <Button
+              onClick={guardarConfiguracion}
+              disabled={guardando}
+              className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700"
             >
-              <div className="flex items-center gap-3 w-full md:w-1/3">
-                <Switch
-                  checked={dia.esta_abierto}
-                  onCheckedChange={(val) =>
-                    actualizarDia(dia.dia_semana, "esta_abierto", val)
-                  }
-                />
-                <span className="font-medium whitespace-nowrap">
-                  {NOMBRES_DIAS[dia.dia_semana]}
-                </span>
-              </div>
+              {guardando ? "Guardando..." : "Guardar Horarios"}
+            </Button>
+          </CardContent>
+        </Card>
 
-              <div className="flex items-center gap-2 w-full md:w-auto md:flex-1 justify-between md:justify-end">
-                <Input
-                  type="time"
-                  className="flex-1 md:w-[120px] md:flex-none"
-                  value={dia.hora_apertura}
-                  disabled={!dia.esta_abierto}
-                  onChange={(e) =>
-                    actualizarDia(dia.dia_semana, "hora_apertura", e.target.value)
-                  }
-                />
-                <span className="text-sm font-medium flex-shrink-0">a</span>
-                <Input
-                  type="time"
-                  className="flex-1 md:w-[120px] md:flex-none"
-                  value={dia.hora_cierre}
-                  disabled={!dia.esta_abierto}
-                  onChange={(e) =>
-                    actualizarDia(dia.dia_semana, "hora_cierre", e.target.value)
-                  }
-                />
+        {/* 🔴 TARJETA 2: GESTIÓN DE CUENTA (NUEVA) */}
+        <Card className="border-rose-100">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 mb-1">Gestión de Cuenta</h2>
+                <p className="text-sm text-slate-500">
+                  Cerrá tu sesión actual en este dispositivo de forma segura.
+                </p>
               </div>
+              <BotonCerrarSesion />
             </div>
-          ))}
+          </CardContent>
+        </Card>
+      </div>
 
-          <Button
-            onClick={guardarConfiguracion}
-            disabled={guardando}
-            className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700"
-          >
-            {guardando ? "Guardando..." : "Guardar Horarios"}
-          </Button>
-        </CardContent>
-      </Card>
     </AdminPageLayout>
   );
 }

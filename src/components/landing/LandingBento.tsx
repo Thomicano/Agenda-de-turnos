@@ -19,14 +19,23 @@ function BentoCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay }}
-      whileHover={{ scale: 1.02, y: -4 }}
-      className={`relative rounded-2xl border border-white/8 overflow-hidden p-6 transition-shadow hover:shadow-2xl hover:shadow-[#00FF9F]/5 ${className}`}
-      style={{ background: "rgba(15,22,35,0.7)", backdropFilter: "blur(12px)" }}
+      whileHover={{ y: -5 }}
+      className={`group relative rounded-3xl border border-white/10 overflow-hidden p-8 transition-all duration-500 ${className}`}
+      style={{ background: "rgba(10,15,25,0.4)", backdropFilter: "blur(20px)" }}
     >
-      {children}
+      {/* Glow de fondo que se activa al hacer hover */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+           style={{ background: "radial-gradient(circle at center, rgba(0,255,159,0.08) 0%, transparent 70%)" }} />
+      
+      {/* Borde sutil que brilla en hover */}
+      <div className="absolute inset-px rounded-[23px] border border-[#00FF9F]/0 group-hover:border-[#00FF9F]/20 transition-all duration-500 pointer-events-none" />
+
+      <div className="relative z-10">
+        {children}
+      </div>
     </motion.div>
   );
-}
+} 
 
 // ─── Card 1: WhatsApp Chat Sim ────────────────────────────────────────────────
 function WhatsAppCard() {
@@ -64,11 +73,10 @@ function WhatsAppCard() {
             className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[80%] px-3 py-1.5 rounded-2xl text-[0.65rem] font-medium ${
-                msg.from === "user"
+              className={`max-w-[80%] px-3 py-1.5 rounded-2xl text-[0.65rem] font-medium ${msg.from === "user"
                   ? "rounded-tr-sm text-slate-900"
                   : "rounded-tl-sm bg-white/5 text-slate-300"
-              }`}
+                }`}
               style={msg.from === "user" ? { background: "#00FF9F", color: "#0a0f16" } : {}}
             >
               {msg.text}
@@ -97,11 +105,10 @@ function HorariosCard() {
             key={slot}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.97 }}
-            className={`py-2 rounded-xl text-xs font-bold transition-all ${
-              i === 1
+            className={`py-2 rounded-xl text-xs font-bold transition-all ${i === 1
                 ? "text-slate-900"
                 : "bg-white/5 text-slate-400 hover:bg-white/10"
-            }`}
+              }`}
             style={i === 1 ? { background: "linear-gradient(135deg, #00FF9F, #008080)" } : {}}
           >
             {slot}
@@ -242,11 +249,24 @@ export default function LandingBento() {
           </h2>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <WhatsAppCard />
-          <HorariosCard />
-          <DashboardCard />
-          <CrecimientoCard />
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* WhatsApp ocupa 2 columnas para que el chat se vea amplio */}
+          <div className="md:col-span-2">
+            <WhatsAppCard />
+          </div>
+
+          <div className="md:col-span-1">
+            <HorariosCard />
+          </div>
+
+          <div className="md:col-span-1">
+            <DashboardCard />
+          </div>
+
+          {/* Crecimiento ocupa 2 columnas abajo para lucir el gráfico */}
+          <div className="md:col-span-2">
+            <CrecimientoCard />
+          </div>
         </div>
       </div>
     </section>

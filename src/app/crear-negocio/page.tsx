@@ -1,92 +1,69 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { useState } from "react";
-
-import { supabase } from "@/lib/supabaseClient";
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Loader2, Trash2, Plus, Smartphone, Settings, 
+  MapPin, Phone, Mail, Clock, Scissors, Stethoscope, 
+  Car, Sparkles, ArrowRight, ArrowLeft, Upload, Globe,
+  CheckCircle2, X
+} from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
-// Types
+import { toast } from "sonner";
 
-type Servicio = {
-  nombre: string;
-  precio: string;
-  duracion: string;
-};
+// --- TIPOS Y CONFIG ---
+type Servicio = { nombre: string; precio: string; duracion: string; };
+type DiaHorario = { dia: string; activo: boolean; desde: string; hasta: string; };
 
-type DiaHorario = {
-  dia: string;
-  activo: boolean;
-  desde: string;
-  hasta: string;
-};
-
-
-const DIAS_SEMANA = [
-  "Lunes",
-  "Martes",
-  "Miércoles",
-  "Jueves",
-  "Viernes",
-  "Sábado",
-  "Domingo",
+const RUBROS = [
+  { id: 'Peluquería', label: 'Peluquería', icon: Scissors, color: '#00FF9F' },
+  { id: 'Salud', label: 'Salud', icon: Stethoscope, color: '#4facfe' },
+  { id: 'Mecánica', label: 'Mecánico', icon: Car, color: '#f093fb' },
+  { id: 'Estética', label: 'Estética', icon: Sparkles, color: '#00FF9F' }
 ];
 
-export default function CrearNegocioPage() {
-  // States
+const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+export default function OnboardingNegocioPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // --- CONTROL DEL STEPPER ---
+  const [step, setStep] = useState(1);
+  const totalSteps = 3;
+
+  // --- ESTADOS (TODOS INTEGRADOS) ---
   const [nombreNegocio, setNombreNegocio] = useState("");
-  const [rubro, setRubro] = useState("Peluquería");
+  const [rubro, setRubro] = useState(RUBROS[0].id); // Guardamos solo el ID (string)
   const [telefono, setTelefono] = useState("");
   const [direccion, setDireccion] = useState("");
   const [email, setEmail] = useState("");
-  const [imagenFile, setImagenFile] = useState<File | null>(null);
-  const [imagenPreview, setImagenPreview] = useState<string>("");
-
-  const [servicios, setServicios] = useState<Servicio[]>([
-    { nombre: "", precio: "", duracion: "" },
-  ]);
-
-  const router = useRouter();
-
-  const [mostrarExito, setMostrarExito] = useState(false);
-  const [finalSlug, setFinalSlug] = useState("");
-
+  
   const [duracionTurno, setDuracionTurno] = useState("");
   const [intervaloTurno, setIntervaloTurno] = useState("");
   const [intervaloAutomatico, setIntervaloAutomatico] = useState(true);
 
+  const [imagenFile, setImagenFile] = useState<File | null>(null);
+  const [imagenPreview, setImagenPreview] = useState<string>("");
+
+  const [servicios, setServicios] = useState<Servicio[]>([{ nombre: "", precio: "", duracion: "30" }]);
+  const [horariosDia, setHorariosDia] = useState<DiaHorario[]>(
+    DIAS_SEMANA.map(d => ({ dia: d, activo: !["Sábado", "Domingo"].includes(d), desde: "09:00", hasta: "18:00" }))
+  );
+
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [mostrarPreview, setMostrarPreview] = useState(false);
-  const [horariosDia, setHorariosDia] = useState<DiaHorario[]>([
-    { dia: "Lunes", activo: false, desde: "", hasta: "" },
-    { dia: "Martes", activo: false, desde: "", hasta: "" },
-    { dia: "Miércoles", activo: false, desde: "", hasta: "" },
-    { dia: "Jueves", activo: false, desde: "", hasta: "" },
-    { dia: "Viernes", activo: false, desde: "", hasta: "" },
-    { dia: "Sábado", activo: false, desde: "", hasta: "" },
-    { dia: "Domingo", activo: false, desde: "", hasta: "" },
-  ]);
+  const [mostrarExito, setMostrarExito] = useState(false);
+  const [finalSlug, setFinalSlug] = useState("");
 
-  const { user, isLoading: authLoading } = useAuth();
-
-  // Calcular intervalo automático basado en duración
+  // --- LÓGICA DE INTERVALOS ---
   const calcularIntervaloAutomatico = (duracion: string) => {
     const duracionNum = parseInt(duracion);
     if (!duracionNum) return "0";
-
-    // Lógica: 10% del tiempo del turno, mínimo 5 minutos
-    const intervaloCalculado = Math.max(5, Math.ceil(duracionNum * 0.1));
-    return intervaloCalculado.toString();
+    return Math.max(5, Math.ceil(duracionNum * 0.1)).toString();
   };
 
-  // Actualizar intervalo cuando cambia la duración (si está en modo automático)
   const handleDuracionChange = (valor: string) => {
     setDuracionTurno(valor);
     if (intervaloAutomatico && valor) {
@@ -94,952 +71,401 @@ export default function CrearNegocioPage() {
     }
   };
 
-  // Manejo de imagen
+  // --- HANDLERS GENERALES ---
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validar tipo de archivo
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      alert('Por favor sube una imagen válida (JPG, PNG o WEBP)');
-      return;
-    }
-
-    // Validar tamaño (5MB máximo)
-    const maxSize = 5 * 1024 * 1024; // 5MB en bytes
-    if (file.size > maxSize) {
-      alert('La imagen es muy grande. El tamaño máximo es 5MB');
-      return;
-    }
+    if (!validTypes.includes(file.type)) { toast.error('Solo JPG, PNG o WEBP'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Máximo 5MB'); return; }
 
     setImagenFile(file);
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagenPreview(reader.result as string);
-    };
+    reader.onloadend = () => setImagenPreview(reader.result as string);
     reader.readAsDataURL(file);
   };
 
-  // Funciones para servicios
-  const agregarServicio = () => {
-    setServicios([...servicios, { nombre: "", precio: "", duracion: "" }]);
+  const agregarServicio = () => setServicios([...servicios, { nombre: "", precio: "", duracion: "30" }]);
+  const eliminarServicio = (index: number) => setServicios(servicios.filter((_, i) => i !== index));
+  const actualizarServicio = (index: number, campo: keyof Servicio, valor: string) => {
+    const copia = [...servicios]; copia[index][campo] = valor; setServicios(copia);
   };
 
-  const eliminarServicio = (index: number) => {
-    setServicios(servicios.filter((_, i) => i !== index));
-  };
-
-  const actualizarServicio = (
-    index: number,
-    campo: keyof Servicio,
-    valor: string
-  ) => {
-    const copia = [...servicios];
-    copia[index][campo] = valor;
-    setServicios(copia);
-  };
-
-  // Funciones para horarios
   const toggleDia = (index: number) => {
-    const copia = [...horariosDia];
-    copia[index].activo = !copia[index].activo;
-    setHorariosDia(copia);
+    const copia = [...horariosDia]; copia[index].activo = !copia[index].activo; setHorariosDia(copia);
   };
 
-  // Validación
-  const validarFormulario = () => {
-    const newErrors: { [key: string]: string } = {};
-
-    if (!nombreNegocio.trim()) {
-      newErrors.nombreNegocio = "El nombre del negocio es obligatorio";
+  // --- NAVEGACIÓN DEL STEPPER ---
+  const nextStep = () => {
+    if (step === 1 && (!nombreNegocio || !email || !telefono)) {
+      toast.error("Completá los campos obligatorios (*)"); return;
     }
-
-    if (!telefono.trim()) {
-      newErrors.telefono = "El teléfono es obligatorio";
+    if (step === 2 && (!duracionTurno || servicios.some(s => !s.nombre))) {
+      toast.error("Completá los servicios y la duración"); return;
     }
-
-    if (!email.trim()) {
-      newErrors.email = "El email es obligatorio";
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "El email no es válido";
-    }
-
-    // Validar que haya al menos un servicio completo
-    const serviciosValidos = servicios.filter(
-      s => s.nombre.trim() && s.precio && s.duracion
-    );
-    if (serviciosValidos.length === 0) {
-      newErrors.servicios = "Debes agregar al menos un servicio completo";
-    }
-
-    // Validar que haya al menos un horario completo
-    const diasActivos = horariosDia.filter(d => d.activo);
-
-    if (diasActivos.length === 0) {
-      newErrors.horarios = "Debes seleccionar al menos un día de atención";
-    } else {
-      // Verificar que todos los días activos tengan horario
-      const diasSinHorario = diasActivos.filter(d => !d.desde || !d.hasta);
-      if (diasSinHorario.length > 0) {
-        newErrors.horarios = "Debes indicar el horario para todos los días seleccionados";
-      }
-    }
-
-    if (!duracionTurno) {
-      newErrors.duracionTurno = "La duración del turno es obligatoria";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setStep(s => Math.min(s + 1, totalSteps));
   };
+  const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
-  // Submit
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validarFormulario()) return;
+  // --- SUBMIT FINAL ---
+  const handleSubmit = async () => {
     setLoading(true);
-
     try {
-      // 1. Verificación de Seguridad
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const slugBase = nombreNegocio.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      const uniqueSlug = `${slugBase}-${new Date().getTime().toString().slice(-4)}`;
 
-      if (!currentUser) {
-        toast.error("¡Pará! Tenés que iniciar sesión o registrarte para crear un negocio.");
-        router.push("/login");
-        return;
+      let logoUrl = "";
+      if (imagenFile) {
+         // Lógica del bucket aquí en el futuro
       }
 
-      // 2. Preparación de datos y Slug único (usando timestamp para no colisionar)
-      const slugBase = nombreNegocio.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-      const uniqueSlug = `${slugBase}-${new Date().getTime()}`;
-
-      // 3. Inserción del Negocio (con el owner_id)
+      // Insertar Negocio
       const { data: negocioData, error: negocioError } = await supabase
         .from('negocios')
         .insert([{
+          owner_id: user?.id,
           nombre: nombreNegocio,
-          rubro,
-          telefono,
-          direccion,
-          email,
           slug: uniqueSlug,
-          owner_id: currentUser.id,
+          rubro, telefono, direccion, email,
+          logo_url: logoUrl,
           duracion_turno: parseInt(duracionTurno),
-          intervalo_turno: intervaloTurno ? parseInt(intervaloTurno) : 0,
-        }])
-        .select()
-        .single();
+          intervalo_turno: parseInt(intervaloTurno || "0"),
+          settings: { tema: { primary: "#00FF9F", dark_mode: true } }
+        }]).select().single();
 
       if (negocioError) throw negocioError;
 
-      const negocioId = negocioData.id;
+      // Insertar Servicios
+      const serviciosAInsertar = servicios.filter(s => s.nombre.trim()).map(s => ({
+        negocio_id: negocioData.id, nombre: s.nombre, precio: parseFloat(s.precio || "0"), duracion_min: parseInt(s.duracion || "30")
+      }));
 
-      // 4. Inserción de datos relacionados en paralelo usando Promise.all
-      const serviciosAInsertar = servicios
-        .filter(s => s.nombre.trim())
-        .map(s => ({
-          negocio_id: negocioId,
-          nombre: s.nombre,
-          precio: parseFloat(s.precio),
-          duracion_min: parseInt(s.duracion)
-        }));
+      const { error: servError } = await supabase.from('servicios').insert(serviciosAInsertar);
+      if (servError) throw servError;
 
-      const horariosAInsertar = horariosDia
-        .filter(d => d.activo)
-        .map(d => ({
-          negocio_id: negocioId,
-          dia_semana: DIAS_SEMANA.indexOf(d.dia),
-          esta_abierto: true,
-          hora_apertura: d.desde,
-          hora_cierre: d.hasta
-        }));
-
-      const [servRes, horRes] = await Promise.all([
-        supabase.from('servicios').insert(serviciosAInsertar),
-        supabase.from('horarios_config').insert(horariosAInsertar)
-      ]);
-
-      if (servRes.error) throw servRes.error;
-      if (horRes.error) throw horRes.error;
-
-      // --- ÉXITO TOTAL ---
       setFinalSlug(uniqueSlug);
       setMostrarExito(true);
-
     } catch (error: any) {
-      console.error("❌ Error en el despliegue del negocio:", error);
-      toast.error(error.message || "Ocurrió un error inesperado al crear el negocio.");
+      toast.error(error.message || "Ocurrió un error.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Bloqueos de renderización por autenticación
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium text-sm">Verificando sesión...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center">
-          <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Acceso Denegado</h2>
-          <p className="text-slate-500 text-sm mb-8">
-            Tenés que iniciar sesión o registrar tu cuenta para poder crear un negocio en TurneroPro.
-          </p>
-          <div className="flex flex-col gap-3">
-            <Link 
-              href="/login" 
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition-colors"
-            >
-              Iniciar sesión
-            </Link>
-            <Link
-              href="/registro"
-              className="text-indigo-600 hover:text-indigo-700 font-medium text-sm transition-colors py-2"
-            >
-              Crear cuenta gratis
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (authLoading) return <div className="min-h-screen bg-[#19143c] flex items-center justify-center"><Loader2 className="animate-spin text-[#00FF9F]" /></div>;
+  if (!user) return <div className="min-h-screen bg-[#19143c] text-white flex items-center justify-center">Iniciá sesión primero.</div>;
 
   return (
-    <main className="min-h-screen bg-gray-50 py-16">
-      <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow">
-        {/* TÍTULO */}
-        <h1 className="text-3xl font-bold text-gray-900">
-          Configurá tu negocio
-        </h1>
+    <div className="min-h-screen bg-[var(--background)] text-[#f8fafc] flex flex-col lg:flex-row overflow-hidden font-sans">
+      
+      {/* ── IZQUIERDA: FORMULARIO (STEPPER) ── */}
+      <div className="w-full lg:w-[55%] h-screen overflow-y-auto p-6 md:p-12 custom-scrollbar flex flex-col">
+        
+        {/* Progress Bar */}
+        <div className="flex gap-2 mb-8">
+          {[1, 2, 3].map(i => (
+            <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i <= step ? 'bg-[#00FF9F]' : 'bg-white/10'}`} />
+          ))}
+        </div>
 
-        <p className="mt-2 text-gray-600">
-          Completá los datos básicos para que tus clientes puedan reservar turnos.
-        </p>
+        <div className="flex-1 max-w-xl mx-auto lg:mx-0 w-full pb-20">
+          <AnimatePresence mode="wait">
+            
+            {/* --- PASO 1: IDENTIDAD --- */}
+            {step === 1 && (
+              <motion.div key="step1" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
+                <header>
+                  <h1 className="text-4xl font-black uppercase tracking-tighter italic">Identidad<span className="text-[#00FF9F]">.Digital</span></h1>
+                  <p className="text-slate-400 text-[10px] mt-2 font-bold uppercase tracking-widest">Paso 1 de 3 / Información Básica</p>
+                </header>
 
-        {/* FORMULARIO */}
-        <form onSubmit={handleSubmit} className="mt-8 space-y-8">
-          {/* ========================= */}
-          {/* DATOS DEL NEGOCIO */}
-          {/* ========================= */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-800">
-              Datos del negocio
-            </h2>
+                <div className="space-y-5">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nombre del negocio *</label>
+                    <input className="input-onboarding" value={nombreNegocio} onChange={e => setNombreNegocio(e.target.value)} placeholder="Ej: Barbería La Costa" />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Teléfono *</label>
+                      <input className="input-onboarding" value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="+54 9 11..." type="tel" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Email *</label>
+                      <input className="input-onboarding" value={email} onChange={e => setEmail(e.target.value)} placeholder="contacto@empresa.com" type="email" />
+                    </div>
+                  </div>
 
-            <div className="mt-4 space-y-4">
-              {/* NOMBRE */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Nombre del negocio *
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej: Peluquería Juan"
-                  className="input-base"
-                  value={nombreNegocio}
-                  onChange={(e) => setNombreNegocio(e.target.value)}
-                />
-                {errors.nombreNegocio && (
-                  <p className="text-red-500 text-sm mt-1">{errors.nombreNegocio}</p>
-                )}
-              </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Dirección Física</label>
+                    <input className="input-onboarding" value={direccion} onChange={e => setDireccion(e.target.value)} placeholder="Av. Corrientes 1234" />
+                  </div>
 
-              {/* RUBRO */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Rubro
-                </label>
-                <select
-                  className="input-base"
-                  value={rubro}
-                  onChange={(e) => setRubro(e.target.value)}
-                >
-                  <option>Peluquería</option>
-                  <option>Barbería</option>
-                  <option>Estética</option>
-                  <option>Consultorio</option>
-                  <option>Gimnasio</option>
-                  <option>Veterinaria</option>
-                  <option>Otro</option>
-                </select>
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                    {/* Contenedor del Logo */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Logo</label>
+                      <label className="relative w-full h-40 bg-white/5 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-[#00FF9F]/50 transition-all overflow-hidden group">
+                        {imagenPreview ? (
+                          <img src={imagenPreview} className="absolute inset-0 w-full h-full object-cover" alt="Logo preview" />
+                        ) : (
+                          <div className="text-center z-10 group-hover:scale-105 transition-transform">
+                            <Upload className="mx-auto mb-2 text-slate-500" size={24}/>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">Subir Logo</span>
+                          </div>
+                        )}
+                        <input type="file" className="hidden" onChange={handleImageChange} accept="image/*" />
+                      </label>
+                    </div>
+                    
+                    {/* Contenedor de Rubros */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Rubro Principal</label>
+                      <div className="h-40 space-y-2 overflow-y-auto no-scrollbar pr-1">
+                        {RUBROS.map(r => (
+                          <button 
+                            key={r.id} 
+                            type="button" 
+                            onClick={() => setRubro(r.id)} 
+                            className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-[10px] font-bold uppercase transition-all ${rubro === r.id ? 'border-[#00FF9F] bg-[#00FF9F]/10 text-[#00FF9F]' : 'border-white/5 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'}`}
+                          >
+                            {r.label} <r.icon size={16}/>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
-              {/* TELÉFONO */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Teléfono *
-                </label>
-                <input
-                  type="tel"
-                  placeholder="Ej: +54 9 11 1234-5678"
-                  className="input-base"
-                  value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
-                />
-                {errors.telefono && (
-                  <p className="text-red-500 text-sm mt-1">{errors.telefono}</p>
-                )}
-              </div>
+            {/* --- PASO 2: SERVICIOS Y CONFIG --- */}
+            {step === 2 && (
+              <motion.div key="step2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
+                <header>
+                  <h1 className="text-4xl font-black uppercase tracking-tighter italic">Servicios<span className="text-[#00FF9F]">.Config</span></h1>
+                  <p className="text-slate-400 text-[10px] mt-2 font-bold uppercase tracking-widest">Paso 2 de 3 / Tiempos y Precios</p>
+                </header>
 
-              {/* EMAIL */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  placeholder="Ej: contacto@negocio.com"
-                  className="input-base"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                )}
-              </div>
+                <div className="space-y-8">
+                  {/* Tiempos */}
+                  <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-4">
+                     <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Duración base (min) *</label>
+                        <input type="number" className="w-full bg-transparent border-b border-white/20 pb-2 outline-none font-bold text-lg focus:border-[#00FF9F]" value={duracionTurno} onChange={e => handleDuracionChange(e.target.value)} placeholder="Ej: 30" />
+                     </div>
+                     
+                     <div className="flex items-center gap-3 pt-2">
+                        <input type="checkbox" id="autoInt" checked={intervaloAutomatico} onChange={e => { setIntervaloAutomatico(e.target.checked); if(e.target.checked && duracionTurno) setIntervaloTurno(calcularIntervaloAutomatico(duracionTurno)); }} className="w-4 h-4 accent-[#00FF9F]" />
+                        <label htmlFor="autoInt" className="text-[10px] font-bold text-slate-400 uppercase">Auto calcular descanso (10%)</label>
+                     </div>
 
-              {/* DIRECCIÓN */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Dirección
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej: Av. Corrientes 1234, CABA"
-                  className="input-base"
-                  value={direccion}
-                  onChange={(e) => setDireccion(e.target.value)}
-                />
-              </div>
+                     {!intervaloAutomatico && (
+                        <div>
+                           <label className="text-[10px] font-bold text-slate-400 uppercase">Intervalo manual (min)</label>
+                           <input type="number" className="w-full bg-transparent border-b border-white/20 pb-2 outline-none font-bold text-lg focus:border-[#00FF9F]" value={intervaloTurno} onChange={e => setIntervaloTurno(e.target.value)} placeholder="Ej: 5" />
+                        </div>
+                     )}
+                     
+                     {intervaloAutomatico && duracionTurno && (
+                        <p className="text-[10px] text-[#00FF9F] font-mono">Total bloque: {parseInt(duracionTurno) + parseInt(intervaloTurno || "0")} min</p>
+                     )}
+                  </div>
 
-              {/* IMAGEN */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Imagen o logo
-                </label>
-
-                {!imagenPreview ? (
-                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg
-                        className="w-10 h-10 mb-3 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  {/* Servicios con Layout de Tarjetas */}
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tus Servicios</label>
+                    {servicios.map((s, i) => (
+                      <div key={i} className="flex flex-col sm:flex-row gap-3 p-3 bg-white/5 border border-white/10 rounded-2xl items-center animate-in fade-in zoom-in-95">
+                        <input 
+                          className="w-full sm:flex-[2] h-12 bg-black/20 border border-transparent rounded-xl px-4 text-sm font-bold outline-none focus:border-[#00FF9F] transition-all" 
+                          placeholder="Ej: Corte Clásico" 
+                          value={s.nombre} 
+                          onChange={e => actualizarServicio(i, 'nombre', e.target.value)} 
                         />
-                      </svg>
-                      <p className="mb-2 text-sm text-gray-600">
-                        <span className="font-semibold">Click para subir</span> o arrastrá la imagen
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        PNG, JPG o WEBP (MAX. 5MB)
-                      </p>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageChange}
-                    />
-                  </label>
-                ) : (
-                  <div className="relative">
-                    <img
-                      src={imagenPreview}
-                      alt="Preview"
-                      className="w-full h-48 object-cover rounded-lg border-2 border-gray-300"
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-40 transition rounded-lg flex items-center justify-center group">
-                      <div className="hidden group-hover:flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setImagenPreview("");
-                            setImagenFile(null);
-                          }}
-                          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition cursor-pointer"
-                        >
-                          🗑️ Eliminar
-                        </button>
-                        <label className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer">
-                          📷 Cambiar
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleImageChange}
+                        <div className="flex w-full sm:w-auto gap-3">
+                          <input 
+                            className="w-full sm:w-20 h-12 bg-black/20 border border-transparent rounded-xl px-2 text-center text-sm font-bold outline-none focus:border-[#00FF9F] transition-all" 
+                            placeholder="Min" 
+                            type="number" 
+                            value={s.duracion} 
+                            onChange={e => actualizarServicio(i, 'duracion', e.target.value)} 
                           />
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* ========================= */}
-          {/* SERVICIOS */}
-          {/* ========================= */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-800">
-              Servicios *
-            </h2>
-
-            <p className="text-sm text-gray-600 mt-1">
-              Cada servicio puede tener su propio precio y duración
-            </p>
-
-            <div className="mt-4 space-y-4">
-              {servicios.map((servicio, index) => (
-                <Card key={index}>
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* SERVICIO */}
-                      <input
-                        type="text"
-                        placeholder="Servicio (ej: Corte)"
-                        className="input-base"
-                        value={servicio.nombre}
-                        onChange={(e) =>
-                          actualizarServicio(index, "nombre", e.target.value)
-                        }
-                      />
-
-                      {/* PRECIO */}
-                      <input
-                        type="number"
-                        placeholder="Precio"
-                        className="input-base"
-                        value={servicio.precio}
-                        onChange={(e) =>
-                          actualizarServicio(index, "precio", e.target.value)
-                        }
-                      />
-
-                      {/* DURACIÓN */}
-                      <input
-                        type="number"
-                        placeholder="Duración (min)"
-                        className="input-base"
-                        value={servicio.duracion}
-                        onChange={(e) =>
-                          actualizarServicio(index, "duracion", e.target.value)
-                        }
-                      />
-                    </div>
-
-                    {servicios.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        className="mt-3"
-                        onClick={() => eliminarServicio(index)}
-                      >
-                        Eliminar servicio
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {errors.servicios && (
-              <p className="text-red-500 text-sm mt-2">{errors.servicios}</p>
-            )}
-
-            {/* BOTÓN AGREGAR SERVICIO */}
-            <button
-              type="button"
-              className="mt-4 text-indigo-600 text-sm hover:underline"
-              onClick={agregarServicio}
-            >
-              + Agregar otro servicio
-            </button>
-          </section>
-
-          {/* ========================= */}
-          {/* CONFIGURACIÓN TURNOS */}
-          {/* ========================= */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-800">
-              Configuración de turnos
-            </h2>
-
-            <div className="mt-4 space-y-4">
-              {/* DURACIÓN TURNO */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Duración por turno (min) *
-                </label>
-                <input
-                  type="number"
-                  placeholder="30"
-                  className="input-base"
-                  value={duracionTurno}
-                  onChange={(e) => handleDuracionChange(e.target.value)}
-                />
-                {errors.duracionTurno && (
-                  <p className="text-red-500 text-sm mt-1">{errors.duracionTurno}</p>
-                )}
-              </div>
-
-              {/* INTERVALO AUTOMÁTICO */}
-              <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="intervalo-auto"
-                  checked={intervaloAutomatico}
-                  onChange={(e) => {
-                    setIntervaloAutomatico(e.target.checked);
-                    if (e.target.checked && duracionTurno) {
-                      setIntervaloTurno(calcularIntervaloAutomatico(duracionTurno));
-                    }
-                  }}
-                  className="w-4 h-4 text-indigo-600 rounded"
-                />
-                <label htmlFor="intervalo-auto" className="text-sm text-gray-700">
-                  Calcular intervalo automáticamente (10% de la duración)
-                </label>
-              </div>
-
-              {/* INTERVALO MANUAL */}
-              {!intervaloAutomatico && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Intervalo entre turnos (min)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="5"
-                    className="input-base"
-                    value={intervaloTurno}
-                    onChange={(e) => setIntervaloTurno(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Tiempo de descanso entre turnos
-                  </p>
-                </div>
-              )}
-
-              {/* MOSTRAR INTERVALO CALCULADO */}
-              {intervaloAutomatico && duracionTurno && (
-                <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                  ℹ️ Intervalo calculado: <strong>{intervaloTurno} minutos</strong>
-                  <br />
-                  <span className="text-xs">
-                    Total: {(parseInt(duracionTurno) + parseInt(intervaloTurno || "0"))} min
-                  </span>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* ========================= */}
-          {/* HORARIOS */}
-          {/* ========================= */}
-          {/* ========================= */}
-          {/* HORARIOS DE ATENCIÓN */}
-          {/* ========================= */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-800">
-              Horarios de atención *
-            </h2>
-
-            <p className="text-sm text-gray-600 mt-1">
-              Seleccioná los días y el horario en el que atendés
-            </p>
-
-            {/* DÍAS */}
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {horariosDia.map((d, index) => (
-                <button
-                  key={d.dia}
-                  type="button"
-                  onClick={() => toggleDia(index)}
-                  className={`
-          px-4 py-2 rounded-lg border text-sm font-medium transition
-          ${d.activo
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                    }
-        `}
-                >
-                  {d.dia}
-                </button>
-              ))}
-            </div>
-
-            {/* HORARIOS POR DÍA */}
-            {horariosDia.filter(d => d.activo).length > 0 && (
-              <div className="mt-6 space-y-4">
-                <h3 className="text-lg font-medium text-gray-800">Horarios por día</h3>
-                {horariosDia.filter(d => d.activo).map((dia) => {
-                  const originalIndex = horariosDia.findIndex(d => d.dia === dia.dia);
-                  return (
-                    <div key={dia.dia} className="p-4 bg-gray-50 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">{dia.dia}</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Desde
-                          </label>
-                          <Input
-                            type="time"
-                            className="input-base"
-                            value={dia.desde}
-                            onChange={(e) => {
-                              const copia = [...horariosDia];
-                              copia[originalIndex].desde = e.target.value;
-                              setHorariosDia(copia);
-                            }}
+                          <input 
+                            className="w-full sm:w-24 h-12 bg-black/20 border border-transparent rounded-xl px-2 text-center text-sm font-bold outline-none focus:border-[#00FF9F] transition-all" 
+                            placeholder="$ Precio" 
+                            type="number" 
+                            value={s.precio} 
+                            onChange={e => actualizarServicio(i, 'precio', e.target.value)} 
                           />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Hasta
-                          </label>
-                          <Input
-                            type="time"
-                            className="input-base"
-                            value={dia.hasta}
-                            onChange={(e) => {
-                              const copia = [...horariosDia];
-                              copia[originalIndex].hasta = e.target.value;
-                              setHorariosDia(copia);
-                            }}
-                          />
+                          {servicios.length > 1 && (
+                            <button type="button" onClick={() => eliminarServicio(i)} className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-colors">
+                              <X size={18}/>
+                            </button>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    ))}
+                    
+                    <button type="button" onClick={agregarServicio} className="w-full py-4 border-2 border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase text-slate-500 hover:border-[#00FF9F] hover:text-[#00FF9F] hover:bg-[#00FF9F]/5 transition-all">
+                      + Añadir otro servicio
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
             )}
-          </section>
 
-          {/* ========================= */}
-          {/* BOTONES FINALES */}
-          {/* ========================= */}
-          <div className="pt-6 space-y-3">
-            {/* Botón Preview */}
-            <button
-              type="button"
-              onClick={() => setMostrarPreview(true)}
-              className="
-                w-full
-                bg-white
-                border-2
-                border-indigo-600
-                text-indigo-600
-                py-3
-                rounded-lg
-                text-lg
-                hover:bg-indigo-50
-                transition
-                font-semibold
-              "
-            >
-              👁️ Vista previa de mi agenda
-            </button>
+            {/* --- PASO 3: HORARIOS --- */}
+            {step === 3 && (
+              <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
+                <header>
+                  <h1 className="text-4xl font-black uppercase tracking-tighter italic">Disponibilidad<span className="text-[#00FF9F]">.Semanal</span></h1>
+                  <p className="text-slate-400 text-[10px] mt-2 font-bold uppercase tracking-widest">Paso 3 de 3 / Días de atención</p>
+                </header>
 
-            {/* Botón Crear */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="
-                w-full
-                bg-indigo-600
-                text-white
-                py-3
-                rounded-lg
-                text-lg
-                hover:bg-indigo-700
-                transition
-                disabled:bg-gray-400
-                disabled:cursor-not-allowed
-                font-semibold
-              "
-            >
-              {loading ? "Creando agenda..." : "✨ Crear mi agenda"}
-            </button>
-          </div>
-        </form>
-        {mostrarExito && (
-          <div className="fixed inset-0 bg-indigo-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-            <Card className="max-w-md w-full border-none shadow-2xl">
-              <CardContent className="p-8 text-center">
-                <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
-                  🎉
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Ya estás online!</h2>
-                <p className="text-gray-600 mb-8">Tu agenda se creó correctamente. Copiá tus accesos:</p>
-
-                <div className="space-y-4 text-left">
-                  <div>
-                    <label className="text-xs font-bold text-indigo-600 uppercase">Link para tus clientes</label>
-                    <div className="flex gap-2 mt-1">
-                      <Input readOnly value={`http://localhost:3000/${finalSlug}`} className="bg-gray-50" />
-                      <Button variant="outline" onClick={() => {
-                        navigator.clipboard.writeText(`http://localhost:3000/${finalSlug}`);
-                        alert("¡Copiado!");
-                      }}>Copiar</Button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-amber-600 uppercase">Tu Panel Administrador</label>
-                    <div className="flex gap-2 mt-1">
-                      <Input readOnly value={`http://localhost:3000/admin/${finalSlug}`} className="bg-amber-50" />
-                      <Button variant="outline" onClick={() => {
-                        navigator.clipboard.writeText(`http://localhost:3000/admin/${finalSlug}`);
-                        alert("¡Copiado!");
-                      }}>Copiar</Button>
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  className="w-full mt-8 bg-indigo-600 hover:bg-indigo-700 h-12 text-lg"
-                  onClick={() => router.push(`/admin/${finalSlug}`)}
-                >
-                  Ir a mi Agenda ahora →
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        {/* ========================= */}
-        {/* MODAL DE PREVIEW */}
-        {/* ========================= */}
-        {mostrarPreview && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              {/* Header del Modal */}
-              <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Vista previa de tu agenda
-                </h2>
-                <button
-                  onClick={() => setMostrarPreview(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Contenido del Preview */}
-              <div className="p-6">
-                {/* Header del negocio */}
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-lg mb-6">
-                  <div className="flex items-start gap-4">
-                    {imagenPreview ? (
-                      <img
-                        src={imagenPreview}
-                        alt={nombreNegocio}
-                        className="w-20 h-20 rounded-lg object-cover border-2 border-white"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-lg bg-white bg-opacity-20 flex items-center justify-center text-4xl">
-                        🏪
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <h1 className="text-2xl font-bold">
-                        {nombreNegocio || "Nombre de tu negocio"}
-                      </h1>
-                      <p className="text-indigo-100 mt-1">{rubro}</p>
-                      {direccion && (
-                        <p className="text-sm text-indigo-100 mt-2">📍 {direccion}</p>
+                <div className="space-y-2 max-h-[50vh] overflow-y-auto no-scrollbar pr-2">
+                  {horariosDia.map((h, i) => (
+                    <div key={h.dia} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${h.activo ? 'border-[#00FF9F]/40 bg-[#00FF9F]/5' : 'border-white/5 bg-white/5'}`}>
+                      <input type="checkbox" checked={h.activo} onChange={() => toggleDia(i)} className="w-5 h-5 accent-[#00FF9F]" />
+                      <span className="text-[11px] font-black uppercase w-20">{h.dia}</span>
+                      {h.activo && (
+                        <div className="flex-1 flex justify-end gap-2 text-[11px]">
+                          <input type="time" value={h.desde} onChange={e => { const n = [...horariosDia]; n[i].desde = e.target.value; setHorariosDia(n); }} className="bg-[#19143c] border border-white/10 rounded-md px-2 py-1 outline-none font-mono" />
+                          <span className="text-slate-600 self-center">→</span>
+                          <input type="time" value={h.hasta} onChange={e => { const n = [...horariosDia]; n[i].hasta = e.target.value; setHorariosDia(n); }} className="bg-[#19143c] border border-white/10 rounded-md px-2 py-1 outline-none font-mono" />
+                        </div>
                       )}
                     </div>
-                  </div>
+                  ))}
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-                {/* Información de contacto */}
-                <div className="grid md:grid-cols-2 gap-4 mb-6">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">Teléfono</p>
-                    <p className="font-semibold text-gray-900">
-                      {telefono || "No especificado"}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">Email</p>
-                    <p className="font-semibold text-gray-900">
-                      {email || "No especificado"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Servicios */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    📋 Servicios disponibles
-                  </h3>
-                  {servicios.filter(s => s.nombre).length === 0 ? (
-                    <p className="text-gray-500 text-sm">
-                      Aún no agregaste servicios
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {servicios
-                        .filter(s => s.nombre)
-                        .map((servicio, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between items-center p-3 bg-white border rounded-lg"
-                          >
-                            <div>
-                              <p className="font-semibold text-gray-900">
-                                {servicio.nombre}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                {servicio.duracion} minutos
-                              </p>
-                            </div>
-                            <p className="text-lg font-bold text-indigo-600">
-                              ${servicio.precio}
-                            </p>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Horarios */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    🕐 Horarios de atención
-                  </h3>
-                  {horariosDia.filter(d => d.activo && d.desde && d.hasta).length === 0 ? (
-                    <p className="text-gray-500 text-sm">
-                      Aún no configuraste horarios
-                    </p>
-                  ) : (
-                    <div className="grid md:grid-cols-2 gap-2">
-                      {horariosDia
-                        .filter(d => d.activo && d.desde && d.hasta)
-                        .map((horario, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between p-3 bg-gray-50 rounded-lg"
-                          >
-                            <span className="font-medium text-gray-900">
-                              {horario.dia}
-                            </span>
-                            <span className="text-gray-600">
-                              {horario.desde} - {horario.hasta}
-                            </span>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Configuración de turnos */}
-                <div className="bg-indigo-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    ⚙️ Configuración
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Duración por turno:</span>
-                      <span className="font-semibold text-gray-900">
-                        {duracionTurno || "0"} minutos
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Intervalo entre turnos:</span>
-                      <span className="font-semibold text-gray-900">
-                        {intervaloTurno || "0"} minutos {intervaloAutomatico && "(automático)"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-t pt-2 mt-2">
-                      <span className="text-gray-600">Tiempo total por slot:</span>
-                      <span className="font-semibold text-indigo-600">
-                        {(parseInt(duracionTurno || "0") + parseInt(intervaloTurno || "0"))} minutos
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ejemplo de horarios disponibles */}
-                {duracionTurno && horariosDia.some(d => d.activo && d.desde && d.hasta) && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                      📅 Ejemplo de horarios generados
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Así verán los clientes los horarios disponibles para reservar:
-                    </p>
-                    {(() => {
-                      const primerHorario = horariosDia.find(d => d.activo && d.desde && d.hasta);
-                      if (!primerHorario) return null;
-
-                      const [horaInicio, minInicio] = primerHorario.desde.split(":").map(Number);
-                      const slots = [];
-                      let horaActual = horaInicio * 60 + minInicio;
-                      const duracion = parseInt(duracionTurno);
-                      const intervalo = parseInt(intervaloTurno || "0");
-
-                      // Generar los primeros 6 slots como ejemplo
-                      for (let i = 0; i < 6; i++) {
-                        const horas = Math.floor(horaActual / 60);
-                        const minutos = horaActual % 60;
-                        slots.push(`${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`);
-                        horaActual += duracion + intervalo;
-                      }
-
-                      return (
-                        <div className="grid grid-cols-3 gap-2">
-                          {slots.map((slot, index) => (
-                            <div
-                              key={index}
-                              className="p-2 bg-white border-2 border-indigo-200 rounded text-center text-sm font-medium text-gray-900"
-                            >
-                              {slot}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer del Modal */}
-              <div className="sticky bottom-0 bg-gray-50 border-t p-4">
-                <button
-                  onClick={() => setMostrarPreview(false)}
-                  className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold"
-                >
-                  Cerrar vista previa
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* --- BOTONERA --- */}
+        <div className="flex gap-4 pt-6 border-t border-white/5 mt-auto">
+          {step > 1 && (
+            <button onClick={prevStep} className="h-16 px-8 rounded-2xl border border-white/10 text-slate-400 font-black uppercase tracking-widest text-[10px] hover:bg-white/5 transition-all">
+              Atrás
+            </button>
+          )}
+          <button 
+            onClick={step === 3 ? handleSubmit : nextStep} 
+            disabled={loading}
+            className="flex-1 h-16 bg-[#00FF9F] text-[#19143c] rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 hover:scale-[1.02] transition-all active:scale-95 shadow-[0_0_20px_rgba(0,255,159,0.3)] disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : step === 3 ? "Crear Imperio" : "Siguiente"} <ArrowRight size={16}/>
+          </button>
+        </div>
       </div>
-    </main>
+
+      {/* ── DERECHA: LIVE PREVIEW (ELÁSTICO Y CORREGIDO) ── */}
+      <div className="hidden lg:flex flex-1 bg-[#120e2d] items-center justify-center relative border-l border-white/5">
+         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(0,255,159,0.05)_0%,transparent_70%)]" />
+         
+         <div className="relative w-[320px] h-[640px] bg-[#19143c] rounded-[3.5rem] border-[8px] border-[#251f5a] shadow-2xl overflow-hidden flex flex-col">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#251f5a] rounded-b-2xl z-20" />
+            
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-10">
+               {/* Header Preview Elástico */}
+               <div className="min-h-[12rem] bg-gradient-to-b from-[#00FF9F]/20 to-[#19143c] p-6 pt-12 flex flex-col justify-end">
+                  <AnimatePresence mode="popLayout">
+                    {imagenPreview && (
+                      <motion.img 
+                        initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} 
+                        src={imagenPreview} 
+                        className="w-16 h-16 rounded-2xl object-cover mb-4 border border-white/10 shadow-lg" 
+                      />
+                    )}
+                  </AnimatePresence>
+                  
+                  <h3 className="text-2xl font-black uppercase tracking-tighter leading-none mb-1 text-white break-words">
+                    {nombreNegocio || "Tu Marca"}
+                  </h3>
+                  
+                  <p className="text-[10px] font-black text-[#00FF9F] uppercase tracking-widest">
+                    {RUBROS.find(r => r.id === rubro)?.label || "Rubro"}
+                  </p>
+                  
+                  {direccion && (
+                    <p className="text-[9px] text-slate-400 mt-2 flex items-center gap-1.5 font-medium">
+                      <MapPin size={12} className="text-[#00FF9F] flex-shrink-0" /> 
+                      <span className="truncate">{direccion}</span>
+                    </p>
+                  )}
+               </div>
+
+               <div className="p-6 space-y-6">
+                  {/* Info Preview */}
+                  <div className="flex justify-between bg-white/5 p-4 rounded-2xl border border-white/5">
+                     <div className="text-center flex-1 border-r border-white/10">
+                       <p className="text-[8px] text-slate-500 uppercase font-bold mb-1">Duración</p>
+                       <p className="text-xs font-black text-white">{duracionTurno || "--"} min</p>
+                     </div>
+                     <div className="text-center flex-1">
+                       <p className="text-[8px] text-slate-500 uppercase font-bold mb-1">Intervalo</p>
+                       <p className="text-xs font-black text-white">{intervaloTurno || "--"} min</p>
+                     </div>
+                  </div>
+
+                  {/* Servicios Preview */}
+                  <div className="space-y-3">
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Servicios</p>
+                    
+                    {servicios.some(s => s.nombre.trim() !== "") ? (
+                      servicios.filter(s => s.nombre.trim() !== "").map((s, i) => (
+                        <div key={i} className="p-3.5 bg-white/5 rounded-xl border border-white/5 flex justify-between items-center text-xs font-bold transition-all">
+                           <span className="text-white truncate pr-2">{s.nombre}</span> 
+                           <span className="text-[#00FF9F] flex-shrink-0">${s.precio || "0"}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="h-14 bg-white/5 rounded-xl border border-white/5 border-dashed flex items-center justify-center">
+                        <span className="text-[9px] text-slate-600 uppercase font-bold">Aún no hay servicios</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dias Preview */}
+                  <div className="space-y-3">
+                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Días Disponibles</p>
+                     <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                        {horariosDia.filter(h => h.activo).length > 0 ? (
+                          horariosDia.filter(h => h.activo).map((h, i) => (
+                            <div key={i} className="flex-shrink-0 w-14 h-16 rounded-2xl border border-[#00FF9F]/30 bg-[#00FF9F]/5 flex flex-col items-center justify-center">
+                               <span className="text-[9px] font-black text-[#00FF9F] uppercase">{h.dia.slice(0,3)}</span>
+                            </div>
+                          ))
+                        ) : (
+                           <div className="h-16 w-full bg-white/5 rounded-2xl border border-white/5 border-dashed flex items-center justify-center">
+                              <span className="text-[9px] text-slate-600 uppercase font-bold">Sin horarios</span>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+               </div>
+            </div>
+            
+            <div className="p-6 pt-0 bg-[#19143c] z-10 relative shadow-[0_-20px_20px_-10px_rgba(25,20,60,0.9)]">
+               <div className="w-full h-12 bg-[#00FF9F] rounded-xl flex items-center justify-center text-[#19143c] text-[10px] font-black uppercase tracking-widest opacity-90">
+                  Simular Reserva
+               </div>
+            </div>
+         </div>
+      </div>
+
+      {/* --- MODAL EXITO --- */}
+      {mostrarExito && (
+         <div className="fixed inset-0 bg-[#0d0d1a]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+             <div className="bg-[#19143c] border border-white/10 p-8 rounded-3xl max-w-md w-full text-center">
+                 <div className="w-16 h-16 bg-[#00FF9F]/20 text-[#00FF9F] rounded-2xl flex items-center justify-center mx-auto mb-6"><CheckCircle2 size={30} /></div>
+                 <h2 className="text-2xl font-black uppercase italic mb-2">¡Imperio Online!</h2>
+                 <p className="text-slate-400 text-sm mb-6">Tu negocio ya está listo para recibir clientes.</p>
+                 <button onClick={() => router.push(`/admin/${finalSlug}`)} className="w-full h-14 bg-[#00FF9F] text-[#19143c] rounded-xl font-black uppercase tracking-widest">Ir a mi Panel</button>
+             </div>
+         </div>
+      )}
+    </div>
   );
 }

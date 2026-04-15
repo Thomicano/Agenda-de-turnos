@@ -108,8 +108,8 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.12 0.02 260);
-  --foreground: oklch(0.98 0 0);
+  --background: #0B0F19; /* Tu color exacto */
+  --foreground: #f8fafc;
   --primary: oklch(0.88 0.25 160); 
   --primary-foreground: oklch(0.12 0.02 260);
   --secondary: oklch(0.97 0 0);
@@ -141,8 +141,8 @@
 }
 
 .dark {
-  --background: oklch(0.12 0.02 260);
-  --foreground: oklch(0.98 0 0);
+  --background: #19143c;
+  --foreground: #f8fafc;
   --primary: oklch(0.88 0.25 160);
   --primary-foreground: oklch(0.12 0.02 260);
   --card: oklch(1 0 0 / 4%);
@@ -168,14 +168,180 @@
     min-height: 100%;
     /* ── Tus gradientes originales restaurados ── */
     background:
-      radial-gradient(ellipse at 20% 30%, rgba(0, 255, 159, 0.12) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 50%, rgba(0, 128, 128, 0.15) 0%, transparent 45%),
-      radial-gradient(ellipse at 40% 90%, rgba(0, 255, 159, 0.08) 0%, transparent 50%),
-      linear-gradient(135deg, #0d0d1a 0%, #07070c 50%, #0d0d1a 100%);
+      radial-gradient(ellipse at 20% 30%, rgba(0, 255, 159, 0.1) 0%, transparent 50%),
+      /* Brillo Teal (suave) */
+      radial-gradient(ellipse at 80% 50%, rgba(0, 128, 128, 0.12) 0%, transparent 45%),
+      /* El fondo con tu color hexadecimal exacto */
+      linear-gradient(135deg, #19143c 0%, #0d0b25 50%, #19143c 100%);
     background-attachment: fixed;
   }
   body {
     @apply bg-transparent text-foreground;
     min-height: 100vh;
   }
+}
+@utility animate-shimmer-btn {
+  animation: shimmer-btn-animation var(--speed) linear infinite;
+}
+
+@keyframes shimmer-btn-animation {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gradient {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+.animate-gradient {
+  animation: gradient var(--bg-size) linear infinite;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.input-onboarding {
+  @apply w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 outline-none focus:border-[#00FF9F] transition-all text-sm text-white placeholder:text-slate-600;
+}
+
+/* Contenedor principal */
+.custom-switcher-container {
+  position: relative;
+  width: 100%;
+}
+
+/* Cabecera del Dropdown */
+.switcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 2.75rem; /* 44px, igual al original */
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  background-color: var(--card); /* Un tono más claro que el fondo principal */
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  user-select: none;
+}
+
+.switcher-header-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon-store {
+  color: #718096; /* Color slate gris */
+}
+
+.selected-business-name {
+  color: var(--card-foreground);
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 900; /* font-black */
+  text-transform: uppercase;
+  letter-spacing: 0.1em; /* tracking-widest */
+}
+
+.icon-chevron {
+  color: #718096;
+  transition: transform 0.3s ease;
+}
+
+.icon-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Efecto hover en la cabecera */
+.switcher-header:hover {
+  border-color: rgba(0, 255, 159, 0.3); /* Un verde mint sutil */
+}
+
+/* Lista Desplegable */
+.switcher-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem); /* Justo debajo de la cabecera */
+  left: 0;
+  width: 100%;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  background-color: var(--background); /* El fondo oscuro principal, para que se funda con la sidebar */
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  z-index: 50; /* Por encima de otros elementos */
+  list-style: none;
+  margin: 0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Sombra suave */
+}
+
+/* Opciones individuales */
+.switcher-option {
+  display: flex;
+  align-items: center;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  height: 2.25rem; /* 36px */
+  cursor: pointer;
+  color: #cbd5e0; /* Color gris claro de texto */
+  font-size: 0.75rem; /* text-xs */
+  font-family: 'font-sans', sans-serif;
+  text-transform: lowercase;
+}
+
+/* Primera letra en mayúscula */
+.switcher-option .option-business-name::first-letter {
+  text-transform: capitalize;
+}
+
+/* Opciones seleccionada */
+.switcher-option.selected {
+  background-color: var(--muted); /* Un fondo más claro */
+  color: #00FF9F; /* El verde mint */
+  font-weight: 700;
+}
+
+/* Efecto hover en las opciones */
+.switcher-option:not(.selected):hover {
+  background-color: var(--accent); /* Un fondo sutil de hover */
+}
+
+/* Divisor */
+.switcher-divider {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.divider-line {
+  height: 1px;
+  background-color: var(--border);
+}
+
+/* Opción de agregar negocio */
+.switcher-option-add {
+  display: flex;
+  align-items: center;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  height: 2.25rem;
+  cursor: pointer;
+}
+
+.add-business-text {
+  color: #00FF9F; /* El verde mint */
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 900; /* font-black */
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Efecto hover en la opción de agregar */
+.switcher-option-add:hover {
+  background-color: rgba(0, 255, 159, 0.1);
 }

@@ -6,7 +6,7 @@ import LandingHowItWorks from "@/components/landing/LandingHowItWorks";
 import LandingPricing from "@/components/landing/LandingPricing";
 import LandingFooter from "@/components/landing/LandingFooter";
 import Marquee from "@/components/ui/marquee"; // Importamos el componente que agregaste
-
+import LandingFAQ from "@/components/landing/LandingFaq";
 export const metadata: Metadata = {
   title: "TurnixApp — Gestión de turnos automática para tu negocio",
   description:
@@ -73,7 +73,10 @@ export default function HomePage() {
           <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </div>
         <LandingPricing />
-
+        <div className="container mx-auto max-w-5x1 px-6">
+          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          </div>
+          <LandingFAQ />
       </main>
 
       {/* ── FOOTER ── */}

@@ -8,45 +8,45 @@ const steps = [
     num: "01",
     Icon: Settings,
     title: "Configurá tu agenda",
-    desc: "Registrate, cargá tus servicios, employees y horarios disponibles en menos de 5 minutos.",
+    desc: "Registrate, cargá tus servicios y horarios en menos de 5 minutos.",
   },
   {
     num: "02",
     Icon: Link2,
     title: "Compartí tu link",
-    desc: "Tu página pública queda lista al instante. Mandásela a tus clientes por WhatsApp, IG o donde quieras.",
+    desc: "Tu página pública queda lista al instante para WhatsApp o Instagram.",
   },
   {
     num: "03",
     Icon: Zap,
     title: "Automatizá todo",
-    desc: "El bot responde, confirma y recuerda por vos. Vos solo aparecés a trabajar.",
+    desc: "El bot responde y confirma por vos. Vos solo aparecés a trabajar.",
   },
 ];
 
 export default function LandingHowItWorks() {
   return (
-    <section id="como-funciona" className="py-24 px-6">
+    <section id="como-funciona" className="py-32 px-6 relative overflow-hidden">
       <div className="container mx-auto max-w-5xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-20"
         >
-          <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: "#00FF9F" }}>
-            En 3 pasos
+          <p className="text-[10px] font-black tracking-[0.3em] uppercase mb-4" style={{ color: "#00FF9F" }}>
+            PASO A PASO
           </p>
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
-            Listo en menos de 5 minutos.
+          <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase italic">
+            Listo en <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg, #00FF9F, #008080)" }}>minutos.</span>
           </h2>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8 relative">
-          {/* Connector line (desktop) */}
-          <div className="hidden md:block absolute top-12 left-[calc(16.66%+1rem)] right-[calc(16.66%+1rem)] h-px"
-            style={{ background: "linear-gradient(90deg, transparent, #00FF9F30, transparent)" }}
-          />
+        <div className="grid md:grid-cols-3 gap-12 relative">
+          
+          {/* ── Conector Mejorado (Desktop) ── */}
+          <div className="hidden md:block absolute top-12 left-[20%] right-[20%] h-[1px] opacity-20"
+               style={{ background: "linear-gradient(90deg, transparent, #00FF9F, transparent)" }} />
 
           {steps.map((step, i) => (
             <motion.div
@@ -55,25 +55,34 @@ export default function LandingHowItWorks() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.15 }}
-              className="flex flex-col items-center text-center gap-4"
+              className="group flex flex-col items-center text-center gap-6"
             >
+              {/* Icon Container */}
               <motion.div
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                className="relative w-20 h-20 rounded-2xl flex items-center justify-center border border-white/10"
-                style={{ background: "rgba(0,255,159,0.05)" }}
+                whileHover={{ y: -5 }}
+                className="relative w-24 h-24 rounded-3xl flex items-center justify-center border border-white/10 transition-colors group-hover:border-[#00FF9F]/30"
+                style={{ background: "rgba(25, 20, 60, 0.4)", backdropFilter: "blur(10px)" }}
               >
-                <step.Icon size={28} style={{ color: "#00FF9F" }} />
+                {/* Glow interno */}
+                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                     style={{ background: "radial-gradient(circle at center, rgba(0,255,159,0.1) 0%, transparent 70%)" }} />
+                
+                <step.Icon size={32} className="text-slate-400 group-hover:text-[#00FF9F] transition-colors duration-300" />
+                
+                {/* Badge con el Número */}
                 <span
-                  className="absolute -top-3 -right-3 w-7 h-7 rounded-full flex items-center justify-center text-[0.6rem] font-black text-slate-900"
+                  className="absolute -top-2 -right-2 w-8 h-8 rounded-xl flex items-center justify-center text-[0.7rem] font-black text-slate-900 shadow-lg shadow-[#00FF9F]/20"
                   style={{ background: "linear-gradient(135deg, #00FF9F, #008080)" }}
                 >
                   {step.num}
                 </span>
               </motion.div>
 
-              <div>
-                <h3 className="text-base font-bold text-white mb-2">{step.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{step.desc}</p>
+              <div className="max-w-[200px]">
+                <h3 className="text-lg font-black text-white mb-3 uppercase tracking-tight">{step.title}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                  {step.desc}
+                </p>
               </div>
             </motion.div>
           ))}

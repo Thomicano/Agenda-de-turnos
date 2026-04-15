@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Zap, Calendar, MessageCircle } from "lucide-react";
-
+  
 // ─── Floating mock UI ─────────────────────────────────────────────────────────
 function DashboardMock() {
   const slots = [

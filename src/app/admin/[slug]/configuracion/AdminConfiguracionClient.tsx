@@ -52,17 +52,9 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
       const { data: neg } = await supabase.from("negocios").select("*").eq("slug", slug).single();
       if (neg) {
         setNegocio(neg);
-        const { data: horData } = await supabase.from("horarios_config").select("*").eq("negocio_id", neg.id);
-        if (horData && horData.length > 0) {
-          setHorarios(prev => prev.map(diaBase => {
-            const existe = horData.find(d => d.dia_semana === diaBase.dia_semana);
-            // Normalizamos el formato de hora para el input (HH:mm)
-            return existe ? { 
-              ...existe, 
-              hora_apertura: existe.hora_apertura.slice(0, 5), 
-              hora_cierre: existe.hora_cierre.slice(0, 5) 
-            } : diaBase;
-          }));
+        if (neg.horarios && neg.horarios.length > 0) {
+          // Si guardaste con la estructura nueva en el onboarding, lo seteamos directo:
+          setHorarios(neg.horarios);
         }
         const { data: profs } = await supabase.from("profesionales").select("*").eq("negocio_id", neg.id);
         if (profs) setProfesionales(profs);
@@ -70,7 +62,7 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
       setLoading(false);
     }
     loadData();
-  }, [slug]);
+  }, [slug, supabase]);
 
   const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -128,24 +120,35 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
   };
 
   const guardarHorarios = async () => {
-    if (!negocio?.id) return;
-    setGuardando(true);
-    
-    // MEJORA TÉCNICA: Aseguramos que el formato sea HH:mm:00 para la BD
-    const payload = horarios.map((h) => ({ 
-      negocio_id: negocio.id,
-      dia_semana: h.dia_semana,
-      esta_abierto: h.esta_abierto,
-      hora_apertura: h.hora_apertura.length === 5 ? `${h.hora_apertura}:00` : h.hora_apertura,
-      hora_cierre: h.hora_cierre.length === 5 ? `${h.hora_cierre}:00` : h.hora_cierre
-    }));
+  if (!negocio?.id) return;
+  setGuardando(true);
+  
+  // 1️⃣ Preparamos el payload (el array que se guardará en la columna JSONB)
+  const payload = horarios.map((h) => ({ 
+    dia_semana: h.dia_semana, // Mantenemos el índice 0-6
+    esta_abierto: h.esta_abierto,
+    // Aseguramos formato HH:mm:00
+    hora_apertura: h.hora_apertura.length === 5 ? `${h.hora_apertura}:00` : h.hora_apertura,
+    hora_cierre: h.hora_cierre.length === 5 ? `${h.hora_cierre}:00` : h.hora_cierre
+  }));
 
-    const { error } = await supabase.from("horarios_config").upsert(payload, { 
-      onConflict: 'negocio_id,dia_semana' 
-    });
-    
-    setGuardando(false);
-    error ? toast.error("Fallo al guardar") : toast.success("Horarios sincronizados");
+  // 2️⃣ CAMBIO CLAVE: Actualizamos el registro del negocio, no una tabla aparte
+  // Usamos .update() en la tabla 'negocios' filtrando por el ID actual
+  const { error } = await supabase
+    .from("negocios") 
+    .update({ 
+      horarios: payload // Actualizamos la columna JSONB con el nuevo array
+    })
+    .eq("id", negocio.id);
+  
+  setGuardando(false);
+
+  if (error) {
+    console.error("❌ Error de Supabase:", error);
+    toast.error("Fallo al guardar los cambios");
+  } else {
+    toast.success("✨ Horarios sincronizados en tu Imperio");
+  }
   };
 
   if (loading) return <div className="p-10 text-center text-[#00FF9F] animate-pulse font-black uppercase">Sincronizando...</div>;

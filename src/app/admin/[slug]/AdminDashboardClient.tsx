@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { AdminPageLayout } from "@/components/admin/AdminPageLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, DollarSign, TrendingUp, Clock, CheckCircle, ArrowRight } from "lucide-react";
 
 type TurnoServicio = {
@@ -35,13 +35,13 @@ export default function AdminDashboardClient({ slug: slugProp }: { slug?: string
   const [gananciasEstimadas, setGananciasEstimadas] = useState(0);
   const [servicioPopular, setServicioPopular] = useState<string>("Ninguno");
 
-  const nombreMesActual = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(new Date());
+  const nombreMesActual = new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date());
 
   useEffect(() => {
     if (slugValido) {
       cargarDatos();
 
-      // 📡 ANTENA REALTIME: Escucha cambios para actualizar métricas en vivo
+      // 📡 ANTENA REALTIME
       const channel = supabase
         .channel("dashboard-realtime")
         .on(
@@ -68,7 +68,6 @@ export default function AdminDashboardClient({ slug: slugProp }: { slug?: string
 
     setLoading(true);
 
-    // 1. Obtener ID del negocio
     const { data: negocioData, error: negocioError } = await supabase
       .from("negocios")
       .select("id, nombre")
@@ -82,9 +81,11 @@ export default function AdminDashboardClient({ slug: slugProp }: { slug?: string
 
     setNegocioNombre(negocioData.nombre);
 
-    // 2. Obtener turnos para el mes (para las métricas)
     const hoy = new Date();
-    const fechaHoyString = hoy.toISOString().split("T")[0];
+    // Ajuste de zona horaria
+    const offset = hoy.getTimezoneOffset() * 60000;
+    const fechaHoyString = new Date(hoy.getTime() - offset).toISOString().split("T")[0];
+    
     const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split("T")[0];
     const ultimoDiaMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split("T")[0];
 
@@ -96,22 +97,24 @@ export default function AdminDashboardClient({ slug: slugProp }: { slug?: string
       .lte("fecha", ultimoDiaMes);
 
     if (!turnosError && turnosData) {
-      // 🚀 EJECUTAR CÁLCULO DE MÉTRICAS
       calcularMetricas(turnosData as Turno[], fechaHoyString);
     }
 
     setLoading(false);
   };
+
   const calcularMetricas = (turnos: Turno[], fechaHoyString: string) => {
     let tHoy = 0, tPendientesHoy = 0, tCompletadosMes = 0, ganancias = 0;
     const countServicios: Record<string, number> = {};
 
     turnos.forEach((turno) => {
+      // HOY
       if (turno.fecha === fechaHoyString) {
-        tHoy++;
-        if (turno.estado === "confirmado" || turno.estado === "pendiente") tPendientesHoy++;
+        if (turno.estado !== "cancelado") tHoy++;
+        if (turno.estado === "confirmado") tPendientesHoy++; // "confirmado" es el estado pendiente real en la BD
       }
-      if (turno.estado === "atendido" || turno.estado === "completado") {
+      // MES
+      if (turno.estado === "atendido") {
         tCompletadosMes++;
         let servs: TurnoServicio[] = Array.isArray(turno.servicios) ? turno.servicios : turno.servicios ? [turno.servicios] : [];
         servs.forEach(serv => {
@@ -207,7 +210,7 @@ export default function AdminDashboardClient({ slug: slugProp }: { slug?: string
       {/* SECCIÓN SECUNDARIA: POPULARIDAD Y GANANCIAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* Popularidad - Con efecto de marca de agua */}
+        {/* Popularidad */}
         <Card className="bg-white/5 backdrop-blur-xl border-white/10 rounded-3xl overflow-hidden relative group transition-all duration-500 hover:shadow-[0_0_25px_rgba(0,255,159,0.08)]">
           <div className="absolute -top-6 -right-6 p-8 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-500">
             <TrendingUp size={160} className="text-[#00FF9F]" />
@@ -231,7 +234,7 @@ export default function AdminDashboardClient({ slug: slugProp }: { slug?: string
           </CardContent>
         </Card>
 
-        {/* Ganancias - Con barra de progreso neón */}
+        {/* Ganancias */}
         <Card className="bg-white/5 backdrop-blur-xl border-white/10 rounded-3xl relative overflow-hidden group transition-all duration-500 hover:shadow-[0_0_25px_rgba(0,255,159,0.08)]">
           <CardHeader className="bg-transparent">
             <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
@@ -257,7 +260,6 @@ export default function AdminDashboardClient({ slug: slugProp }: { slug?: string
           </CardContent>
         </Card>
       </div>
-      
     </AdminPageLayout>
   );
 }

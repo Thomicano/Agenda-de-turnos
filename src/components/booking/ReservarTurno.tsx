@@ -158,7 +158,6 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
 
     const configDia = obtenerConfigDia(fechaSeleccionada);
 
-    // Si no atiende, o no hay horas definidas, vaciamos los slots
     if (!configDia || !configDia.activo || !configDia.desde || !configDia.hasta) {
       setHorariosDisponibles([]);
       return;
@@ -177,18 +176,16 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
 
     const fechaString = fechaSeleccionada.toISOString().split('T')[0];
 
-    // Consultar turnos ocupados
+    // 1. Traemos TODOS los turnos de ese día para este negocio
     const { data: turnosOcupados } = await supabase
       .from('turnos')
-      .select('hora')
+      .select('hora, profesional_id')
       .eq('negocio_id', negocio.id)
       .eq('fecha', fechaString)
-      // Filtro de profesional
-      .eq(profesionalSeleccionado !== "sin-preferencia" ? 'profesional_id' : 'negocio_id', 
-          profesionalSeleccionado !== "sin-preferencia" ? profesionalSeleccionado : negocio.id)
       .neq('estado', 'cancelado');
 
-    const horasOcupadas = new Set(turnosOcupados?.map(t => t.hora.substring(0, 5)) || []);
+    // 2. Definimos la capacidad máxima (cantidad de profesionales)
+    const capacidadMaxima = profesionales.length > 0 ? profesionales.length : 1;
 
     const servicio = servicios.find(s => (s.id || s.nombre) === servicioSeleccionado);
     const duracion = servicio?.duracion_min || negocio.duracion_turno || 30;
@@ -198,10 +195,29 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
       const minutos = horaActualMinutos % 60;
       const horaFormato = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
 
-      const ocupado = horasOcupadas.has(horaFormato);
+      // 3. Filtrar turnos que caen exactamente en este slot
+      const turnosEnEsteSlot = turnosOcupados?.filter(t => t.hora.substring(0, 5) === horaFormato) || [];
+
+      let disponible = true;
+
+      // REGLA A: Si ya se alcanzó la capacidad máxima del local, nadie más entra.
+      if (turnosEnEsteSlot.length >= capacidadMaxima) {
+        disponible = false;
+      } 
+      // REGLA B: Si el cliente eligió un profesional específico, ver si ese profesional está ocupado.
+      else if (profesionalSeleccionado !== "sin-preference") {
+        const profOcupado = turnosEnEsteSlot.some(t => t.profesional_id === profesionalSeleccionado);
+        if (profOcupado) disponible = false;
+      }
+
+      // REGLA C: Validar que no sea una hora que ya pasó
       const yaPaso = esHoy && (horaActualMinutos <= minutosAhora + 15);
 
-      slots.push({ hora: horaFormato, disponible: !ocupado && !yaPaso });
+      slots.push({ 
+        hora: horaFormato, 
+        disponible: disponible && !yaPaso 
+      });
+
       horaActualMinutos += duracion + (negocio.intervalo_turno || 0);
     }
 

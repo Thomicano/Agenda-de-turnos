@@ -13,7 +13,7 @@ export default function AdminNav() {
   const params = useParams();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  
+
   // 💡 NUEVO: Estado para expandir la barra al pasar el mouse
   const [isHovered, setIsHovered] = useState(false);
 
@@ -33,7 +33,7 @@ export default function AdminNav() {
 
   // 💡 NUEVO: Detectamos si estamos en la agenda para colapsar por defecto
   const isAgenda = pathname?.includes("/agenda");
-  
+
   // La barra está colapsada SI estamos en la agenda Y NO le pasamos el mouse por encima
   const isCollapsed = isAgenda && !isHovered;
 
@@ -66,21 +66,19 @@ export default function AdminNav() {
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
-              className={`relative flex items-center p-3 rounded-xl transition-all duration-300 group ${
-                isCollapsed ? "justify-center" : "gap-3"
-              } ${
-                isActive
+              className={`relative flex items-center p-3 rounded-xl transition-all duration-300 group ${isCollapsed ? "justify-center" : "gap-3"
+                } ${isActive
                   ? "bg-[#00FF9F]/10 text-[#00FF9F] font-bold shadow-[0_0_20px_rgba(0,255,159,0.05)]"
                   : "text-slate-400 hover:bg-white/5 hover:text-white font-medium"
-              }`}
+                }`}
             >
               {/* Indicador lateral verde */}
               {isActive && (
                 <div className="absolute left-0 w-1 h-6 bg-[#00FF9F] rounded-r-full shadow-[0_0_10px_#00FF9F]" />
               )}
-              
+
               <Icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-110"}`} />
-              
+
               {/* Solo mostramos el texto si NO está colapsado */}
               {!isCollapsed && <span className="whitespace-nowrap animate-in fade-in duration-300">{link.label}</span>}
             </Link>
@@ -122,7 +120,7 @@ export default function AdminNav() {
               )}
               <NavLinks />
             </div>
-            
+
             <div className="mt-auto pt-4 border-t border-white/10">
               <UserProfile />
             </div>
@@ -131,29 +129,27 @@ export default function AdminNav() {
       </div>
 
       {/* 💻 Desktop Sidebar (Con lógica de Auto-Colapso) */}
-      <aside 
+      <aside
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`hidden md:flex flex-col bg-[#0d0d1a] border-r border-white/10 h-screen sticky top-0 overflow-x-hidden transition-all duration-300 ease-in-out z-50 ${
-          isCollapsed ? "w-20" : "w-64"
-        }`}
+        className={`hidden md:flex flex-col bg-[#0d0d1a] border-r border-white/10 h-screen sticky top-0  transition-all duration-300 ease-in-out z-50 ${isCollapsed ? "w-20" : "w-64"
+          }`}
       >
         <div className={`flex flex-col h-full py-6 transition-all duration-300 ${isCollapsed ? "px-2" : "px-6"}`}>
-          
+
           <h2 className={`font-black tracking-tight text-white border-b border-white/10 pb-4 mb-4 whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? "text-xl text-center" : "text-2xl"}`}>
             {isCollapsed ? (
               <div className="flex justify-center w-full">
                 {/* Asegurate de poner el nombre real de tu archivo de logo abajo */}
                 <img src="/logoturnixapp-removebg.png" alt="Logo" className="w-10 h-10 object-contain" />
-              </div>  
+              </div>
             ) : (
               <>Turnix<span className="text-[#00FF9F]">App</span></>
             )}
           </h2>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
-            {/* Ocultamos el switcher suavemente si está colapsado */}
-            <div className={`transition-all duration-300 overflow-hidden ${isCollapsed ? "opacity-0 h-0" : "opacity-100 h-auto mb-4"}`}>
+          <div className="flex-1 overflow-y-auto overflow-x-visible custom-scrollbar">
+            <div className={`transition-all duration-300 ${isCollapsed ? "opacity-0 h-0 invisible" : "opacity-100 h-auto mb-4"}`}>
               <BusinessSwitcher />
             </div>
 
@@ -162,12 +158,12 @@ export default function AdminNav() {
                 Seleccioná un negocio desde la URL.
               </p>
             )}
-            
+
             <NavLinks />
           </div>
 
-          {/* Ocultamos el perfil suavemente si está colapsado */}
-          <div className={`mt-auto border-t border-white/10 transition-all duration-300 overflow-hidden ${isCollapsed ? "opacity-0 h-0 pt-0" : "opacity-100 h-auto pt-4"}`}>
+          {/* 🟢 IMPORTANTE: Quitá el 'overflow-hidden' de la caja del UserProfile también */}
+          <div className={`mt-auto border-t border-white/10 transition-all duration-300 ${isCollapsed ? "opacity-0 h-0 pt-0" : "opacity-100 h-auto pt-4"}`}>
             <UserProfile />
           </div>
         </div>

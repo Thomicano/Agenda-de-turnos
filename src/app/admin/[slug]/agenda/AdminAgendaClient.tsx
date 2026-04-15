@@ -202,7 +202,6 @@ export default function AdminAgendaClient() {
     <AdminPageLayout 
       title="Agenda del Negocio" 
       subtitle="Control total de tus turnos"
-      isSidebarCollapsed={true} 
     >
       {/* HEADER DE ACCIONES */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 bg-[#131A2A] p-4 rounded-3xl border border-white/10">

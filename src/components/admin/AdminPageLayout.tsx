@@ -9,12 +9,12 @@ interface AdminPageLayoutProps {
 
 export function AdminPageLayout({ title, subtitle, children, action }: AdminPageLayoutProps) {
   return (
-    <div className="bg-slate-50 space-y-6 max-w-5xl mx-auto p-4 md:p-6">
+    <div className="space-y-6 max-w-5xl mx-auto p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-3xl font-black text-white tracking-tight">{title}</h1>
           {subtitle && (
-            <p className="text-muted-foreground text-sm mt-1">
+            <p className="text-slate-400 text-sm mt-1">
               {subtitle}
             </p>
           )}

@@ -1,26 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { Card, CardContent } from "@/components/ui/card";
+import { createBrowserClient } from "@supabase/ssr";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { AdminPageLayout } from "@/components/AdminPageLayout";
-
-// 🟢 IMPORTAMOS EL NUEVO BOTÓN
-import BotonCerrarSesion from "@/components/BotonCerrarSesion"; 
-
-// 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
-const NOMBRES_DIAS = [
-  "Domingo",
-  "Lunes",
-  "Martes",
-  "Miércoles",
-  "Jueves",
-  "Viernes",
-  "Sábado",
-];
+import { AdminPageLayout } from "@/components/admin/AdminPageLayout";
+import { motion, AnimatePresence } from "framer-motion";
+import { Store, Users, Clock, Camera, Plus, Trash2, Save, Loader2, Sparkles, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 
 type DiaConfig = {
   dia_semana: number;
@@ -29,12 +18,20 @@ type DiaConfig = {
   hora_cierre: string;
 };
 
+const NOMBRES_DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
 export default function AdminConfiguracionClient({ slug }: { slug: string }) {
-  const [negocioId, setNegocioId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"general" | "staff" | "horarios">("general");
+  const [negocio, setNegocio] = useState<any>(null);
+  const [profesionales, setProfesionales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [guardandoIdentidad, setGuardandoIdentidad] = useState(false);
+  const [mostrarFormProfesional, setMostrarFormProfesional] = useState(false);
+  const [nuevoProfNombre, setNuevoProfNombre] = useState("");
+  const [nuevoProfEsp, setNuevoProfEsp] = useState("");
+  const [guardandoProfesional, setGuardandoProfesional] = useState(false);
 
-  // Inicializamos un arreglo con los 7 días (estado inicial)
   const [horarios, setHorarios] = useState<DiaConfig[]>(
     Array.from({ length: 7 }, (_, index) => ({
       dia_semana: index,
@@ -44,167 +41,293 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
     }))
   );
 
-  // 1. Obtener negocio_id
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
   useEffect(() => {
-    const fetchNegocio = async () => {
-      const { data } = await supabase
-        .from("negocios")
-        .select("id")
-        .eq("slug", slug)
-        .single();
-      if (data) setNegocioId(data.id);
-    };
-    fetchNegocio();
+    async function loadData() {
+      if (!slug) return;
+      const { data: neg } = await supabase.from("negocios").select("*").eq("slug", slug).single();
+      if (neg) {
+        setNegocio(neg);
+        const { data: horData } = await supabase.from("horarios_config").select("*").eq("negocio_id", neg.id);
+        if (horData && horData.length > 0) {
+          setHorarios(prev => prev.map(diaBase => {
+            const existe = horData.find(d => d.dia_semana === diaBase.dia_semana);
+            // Normalizamos el formato de hora para el input (HH:mm)
+            return existe ? { 
+              ...existe, 
+              hora_apertura: existe.hora_apertura.slice(0, 5), 
+              hora_cierre: existe.hora_cierre.slice(0, 5) 
+            } : diaBase;
+          }));
+        }
+        const { data: profs } = await supabase.from("profesionales").select("*").eq("negocio_id", neg.id);
+        if (profs) setProfesionales(profs);
+      }
+      setLoading(false);
+    }
+    loadData();
   }, [slug]);
 
-  // 2. Cargar horarios si ya existen
-  useEffect(() => {
-    if (!negocioId) return;
-
-    const fetchHorarios = async () => {
-      const { data, error } = await supabase
-        .from("horarios_config")
-        .select("*")
-        .eq("negocio_id", negocioId);
-
-      if (data && data.length > 0) {
-        // Combinamos la respuesta en crudo con nuestro estado base
-        setHorarios((prev) =>
-          prev.map((diaBase) => {
-            const existe = data.find((d) => d.dia_semana === diaBase.dia_semana);
-            return existe
-              ? {
-                  dia_semana: existe.dia_semana,
-                  esta_abierto: existe.esta_abierto,
-                  hora_apertura: existe.hora_apertura,
-                  hora_cierre: existe.hora_cierre,
-                }
-              : diaBase;
-          })
-        );
-      }
-      loading && setLoading(false);
-    };
-
-    fetchHorarios();
-  }, [negocioId, loading]);
-
-  // Guardar configuración
-  const guardarConfiguracion = async () => {
-    if (!negocioId) return;
-    setGuardando(true);
-
-    const payload = horarios.map((h) => ({
-      negocio_id: negocioId,
-      dia_semana: h.dia_semana,
-      esta_abierto: h.esta_abierto,
-      hora_apertura: h.hora_apertura,
-      hora_cierre: h.hora_cierre,
-    }));
-
-    console.log("DATOS A GUARDAR:", payload);
-
-    // Upsert requiere un conflicto clave.
-    const { error } = await supabase.from("horarios_config").upsert(payload, {
-      onConflict: 'negocio_id,dia_semana'
-    });
-
-    setGuardando(false);
-
-    if (error) {
-      console.error("ERROR DE SUPABASE:", error);
-      alert("Hubo un error al guardar los horarios. ¿Están configuradas las claves únicas en Supabase?");
-    } else {
-      alert("¡Horarios guardados con éxito!");
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !negocio?.id) return;
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${negocio.id}/${Math.random()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage.from('logos-negocios').upload(fileName, file, { upsert: true });
+    if (uploadError) return toast.error("Error al subir logo");
+    const { data: { publicUrl } } = supabase.storage.from('logos-negocios').getPublicUrl(fileName);
+    const { error: dbError } = await supabase.from('negocios').update({ logo_url: publicUrl }).eq('id', negocio.id);
+    if (!dbError) {
+      setNegocio({ ...negocio, logo_url: publicUrl });
+      toast.success("Logo actualizado");
     }
   };
 
-  const actualizarDia = (dia_semana: number, campo: keyof DiaConfig, valor: any) => {
-    setHorarios((prev) =>
-      prev.map((h) => (h.dia_semana === dia_semana ? { ...h, [campo]: valor } : h))
-    );
+  const guardarIdentidad = async () => {
+    if (!negocio?.id) return;
+    setGuardandoIdentidad(true);
+    const { error } = await supabase.from('negocios').update({
+      nombre: negocio.nombre,
+      direccion: negocio.direccion,
+      telefono: negocio.telefono,
+      email: negocio.email
+    }).eq('id', negocio.id);
+    setGuardandoIdentidad(false);
+    error ? toast.error("Error") : toast.success("Identidad actualizada");
   };
 
-  if (loading) return <div className="p-6">Cargando configuración...</div>;
+  const agregarProfesional = async () => {
+    if (!negocio?.id || !nuevoProfNombre.trim()) return;
+    setGuardandoProfesional(true);
+    const { data, error } = await supabase.from('profesionales').insert({
+      negocio_id: negocio.id,
+      nombre: nuevoProfNombre,
+      especialidad: nuevoProfEsp
+    }).select().single();
+    setGuardandoProfesional(false);
+    if (!error) {
+      setProfesionales([...profesionales, data]);
+      setMostrarFormProfesional(false);
+      setNuevoProfNombre(""); setNuevoProfEsp("");
+      toast.success("Profesional añadido");
+    }
+  };
+
+  const eliminarProfesional = async (id: string) => {
+    if (!confirm("¿Eliminar?")) return;
+    const { error } = await supabase.from("profesionales").delete().eq("id", id);
+    if (!error) setProfesionales(profesionales.filter(p => p.id !== id));
+  };
+
+  const actualizarDia = (dia_semana: number, campo: keyof DiaConfig, valor: any) => {
+    setHorarios((prev) => prev.map((h) => (h.dia_semana === dia_semana ? { ...h, [campo]: valor } : h)));
+  };
+
+  const guardarHorarios = async () => {
+    if (!negocio?.id) return;
+    setGuardando(true);
+    
+    // MEJORA TÉCNICA: Aseguramos que el formato sea HH:mm:00 para la BD
+    const payload = horarios.map((h) => ({ 
+      negocio_id: negocio.id,
+      dia_semana: h.dia_semana,
+      esta_abierto: h.esta_abierto,
+      hora_apertura: h.hora_apertura.length === 5 ? `${h.hora_apertura}:00` : h.hora_apertura,
+      hora_cierre: h.hora_cierre.length === 5 ? `${h.hora_cierre}:00` : h.hora_cierre
+    }));
+
+    const { error } = await supabase.from("horarios_config").upsert(payload, { 
+      onConflict: 'negocio_id,dia_semana' 
+    });
+    
+    setGuardando(false);
+    error ? toast.error("Fallo al guardar") : toast.success("Horarios sincronizados");
+  };
+
+  if (loading) return <div className="p-10 text-center text-[#00FF9F] animate-pulse font-black uppercase">Sincronizando...</div>;
 
   return (
-    <AdminPageLayout
-      title="Configuración de Horarios"
-      subtitle="Habilitá los días que tu negocio atiende y ajustá sus horas."
-    >
-      <div className="space-y-6">
-        {/* TARJETA 1: HORARIOS (La que ya tenías) */}
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            {horarios.map((dia) => (
-              <div
-                key={dia.dia_semana}
-                className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 md:p-3 rounded-lg border ${
-                  dia.esta_abierto ? "bg-white border-indigo-100" : "bg-gray-50 border-gray-100 text-gray-500"
-                }`}
-              >
-                <div className="flex items-center gap-3 w-full md:w-1/3">
-                  <Switch
-                    checked={dia.esta_abierto}
-                    onCheckedChange={(val) =>
-                      actualizarDia(dia.dia_semana, "esta_abierto", val)
-                    }
-                  />
-                  <span className="font-medium whitespace-nowrap">
-                    {NOMBRES_DIAS[dia.dia_semana]}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 w-full md:w-auto md:flex-1 justify-between md:justify-end">
-                  <Input
-                    type="time"
-                    className="flex-1 md:w-[120px] md:flex-none"
-                    value={dia.hora_apertura}
-                    disabled={!dia.esta_abierto}
-                    onChange={(e) =>
-                      actualizarDia(dia.dia_semana, "hora_apertura", e.target.value)
-                    }
-                  />
-                  <span className="text-sm font-medium flex-shrink-0">a</span>
-                  <Input
-                    type="time"
-                    className="flex-1 md:w-[120px] md:flex-none"
-                    value={dia.hora_cierre}
-                    disabled={!dia.esta_abierto}
-                    onChange={(e) =>
-                      actualizarDia(dia.dia_semana, "hora_cierre", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-            ))}
-
-            <Button
-              onClick={guardarConfiguracion}
-              disabled={guardando}
-              className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700"
-            >
-              {guardando ? "Guardando..." : "Guardar Horarios"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* 🔴 TARJETA 2: GESTIÓN DE CUENTA (NUEVA) */}
-        <Card className="border-rose-100">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-800 mb-1">Gestión de Cuenta</h2>
-                <p className="text-sm text-slate-500">
-                  Cerrá tu sesión actual en este dispositivo de forma segura.
-                </p>
-              </div>
-              <BotonCerrarSesion />
-            </div>
-          </CardContent>
-        </Card>
+    <AdminPageLayout title="Configuración" subtitle="Personalizá el ADN de tu negocio">
+      
+      {/* NAVEGACIÓN DE TABS - CYBER STYLE */}
+      <div className="flex gap-2 p-1.5 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl mb-10 w-fit">
+        {[
+          { id: "general", label: "Identidad", icon: Store },
+          { id: "staff", label: "Equipo", icon: Users },
+          { id: "horarios", label: "Horarios", icon: Clock },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-300 ${
+              activeTab === tab.id 
+                ? "bg-[#00FF9F] text-black font-black shadow-[0_0_20px_rgba(0,255,159,0.3)]" 
+                : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <tab.icon size={18} />
+            <span className="text-xs uppercase tracking-widest">{tab.label}</span>
+          </button>
+        ))}
       </div>
 
+      <AnimatePresence mode="wait">
+        <motion.div key={activeTab} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2 }}>
+          
+          {/* TAB: IDENTIDAD */}
+          {activeTab === "general" && (
+            <Card className="bg-white/5 border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+              <CardContent className="pt-8 space-y-8">
+                <div className="flex flex-col md:flex-row items-center gap-10">
+                  <div className="relative h-32 w-32 rounded-full bg-black/40 border-2 border-dashed border-[#00FF9F]/30 overflow-hidden group shadow-[0_0_15px_rgba(0,255,159,0.1)]">
+                    {negocio?.logo_url ? <img src={negocio.logo_url} className="h-full w-full object-cover" /> : <Camera className="m-auto mt-10 text-slate-500" />}
+                    <label className="absolute inset-0 bg-[#00FF9F]/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-all duration-300">
+                      <Plus className="text-black mb-1" size={24} />
+                      <span className="text-black text-[9px] font-black uppercase tracking-tighter">Cambiar</span>
+                      <input type="file" className="hidden" onChange={handleUploadLogo} accept="image/*" />
+                    </label>
+                  </div>
+                  
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Nombre Comercial</label>
+                      <Input 
+                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-12"
+                        value={negocio?.nombre || ""} 
+                        onChange={(e) => setNegocio({...negocio, nombre: e.target.value})} 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Dirección Física</label>
+                      <Input 
+                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-12"
+                        value={negocio?.direccion || ""} 
+                        onChange={(e) => setNegocio({...negocio, direccion: e.target.value})} 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">WhatsApp / Tel</label>
+                      <Input 
+                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-12"
+                        value={negocio?.telefono || ""} 
+                        onChange={(e) => setNegocio({...negocio, telefono: e.target.value})} 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Email</label>
+                      <Input 
+                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-12"
+                        value={negocio?.email || ""} 
+                        onChange={(e) => setNegocio({...negocio, email: e.target.value})} 
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <Button onClick={guardarIdentidad} disabled={guardandoIdentidad} className="w-full bg-gradient-to-r from-[#00FF9F] to-[#008080] text-black font-black h-12 rounded-xl shadow-lg shadow-[#00FF9F]/10">
+                  {guardandoIdentidad ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
+                  GUARDAR CONFIGURACIÓN
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB: STAFF */}
+          {activeTab === "staff" && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black text-white flex items-center gap-2 italic">
+                  <Users className="text-[#00FF9F]" /> EQUIPO PROFESIONAL
+                </h3>
+                <Button 
+                  onClick={() => setMostrarFormProfesional(!mostrarFormProfesional)}
+                  className="bg-white/5 border border-white/10 hover:bg-[#00FF9F]/10 text-[#00FF9F] rounded-full px-6"
+                >
+                  <Plus size={18} className="mr-2"/> AGREGAR
+                </Button>
+              </div>
+
+              {mostrarFormProfesional && (
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                  <Card className="bg-[#00FF9F]/5 border-[#00FF9F]/20 rounded-3xl">
+                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Input placeholder="Nombre" className="bg-black/20 border-white/10" value={nuevoProfNombre} onChange={e => setNuevoProfNombre(e.target.value)} />
+                      <Input placeholder="Especialidad" className="bg-black/20 border-white/10" value={nuevoProfEsp} onChange={e => setNuevoProfEsp(e.target.value)} />
+                      <div className="flex gap-2">
+                        <Button className="flex-1 bg-[#00FF9F] text-black font-bold" onClick={agregarProfesional} disabled={guardandoProfesional}>
+                          {guardandoProfesional ? <Loader2 className="animate-spin" /> : "CONFIRMAR"}
+                        </Button>
+                        <Button variant="ghost" className="text-white" onClick={() => setMostrarFormProfesional(false)}>X</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {profesionales.map(p => (
+                  <Card key={p.id} className="bg-white/5 border-white/10 rounded-3xl group hover:border-[#00FF9F]/50 transition-all duration-500">
+                    <CardContent className="p-6 flex flex-col items-center text-center">
+                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#00FF9F] to-[#008080] flex items-center justify-center text-black font-black text-2xl mb-4 shadow-lg shadow-[#00FF9F]/20">
+                        {p.nombre[0]?.toUpperCase()}
+                      </div>
+                      <p className="font-black text-white uppercase tracking-tighter text-lg">{p.nombre}</p>
+                      <p className="text-xs text-[#00FF9F] font-bold uppercase tracking-widest mt-1 opacity-70">{p.especialidad}</p>
+                      <Button variant="ghost" className="mt-4 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => eliminarProfesional(p.id)}>
+                        <Trash2 size={18}/>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: HORARIOS */}
+          {activeTab === "horarios" && (
+            <Card className="bg-white/5 border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+              <CardHeader className="bg-white/5 border-b border-white/10">
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Clock className="text-[#00FF9F]" /> DISPONIBILIDAD HORARIA
+                </CardTitle>
+                <CardDescription className="text-slate-400">Definí los bloques de tiempo en los que tus clientes pueden reservar.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-3">
+                {horarios.map((dia) => (
+                  <div key={dia.dia_semana} className={`flex items-center justify-between p-4 rounded-2xl transition-all ${dia.esta_abierto ? "bg-white/5 border border-[#00FF9F]/20" : "bg-black/20 opacity-40"}`}>
+                    <div className="flex items-center gap-4">
+                      <Switch 
+                        checked={dia.esta_abierto} 
+                        className="data-[state=checked]:bg-[#00FF9F]"
+                        onCheckedChange={(val) => actualizarDia(dia.dia_semana, "esta_abierto", val)} 
+                      />
+                      <span className={`text-sm font-black uppercase tracking-widest ${dia.esta_abierto ? "text-white" : "text-slate-500"}`}>
+                        {NOMBRES_DIAS[dia.dia_semana]}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input type="time" className="bg-black/40 border-white/10 text-white w-28 h-9 text-center font-mono" value={dia.hora_apertura} disabled={!dia.esta_abierto} onChange={(e) => actualizarDia(dia.dia_semana, "hora_apertura", e.target.value)} />
+                      <ArrowRight size={14} className="text-slate-600" />
+                      <Input type="time" className="bg-black/40 border-white/10 text-white w-28 h-9 text-center font-mono" value={dia.hora_cierre} disabled={!dia.esta_abierto} onChange={(e) => actualizarDia(dia.dia_semana, "hora_cierre", e.target.value)} />
+                    </div>
+                  </div>
+                ))}
+                <div className="pt-6">
+                  <Button onClick={guardarHorarios} disabled={guardando} className="w-full bg-[#00FF9F] text-black font-black h-12 rounded-xl hover:bg-[#00cc7e] transition-all">
+                    {guardando ? <Loader2 className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />} 
+                    SINCRONIZAR CALENDARIO
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+        </motion.div>
+      </AnimatePresence>
     </AdminPageLayout>
   );
 }

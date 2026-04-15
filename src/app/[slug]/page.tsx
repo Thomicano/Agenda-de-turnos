@@ -1,5 +1,5 @@
 // app/[slug]/page.tsx
-import ReservarTurno from "@/components/ReservarTurno";
+import ReservarTurno from "@/components/booking/ReservarTurno";
 
 type PageProps = {
   params: Promise<{

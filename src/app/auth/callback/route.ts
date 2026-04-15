@@ -40,13 +40,26 @@ export async function GET(request: Request) {
         .single()
 
       // 3. Ruteo inteligente
-      if (negocio && negocio.slug) {
-        // Ya tiene negocio -> Directo a su panel
-        return NextResponse.redirect(`${origin}/admin/${negocio.slug}`)
+      // ... código anterior ...
+
+    if (!authError && authData.session) {
+      
+      // 1. Verificamos si tiene al menos un negocio
+      const { data: negocios } = await supabase
+        .from('negocios')
+        .select('slug')
+        .eq('owner_id', authData.session.user.id)
+
+      // 2. Ruteo unificado
+      if (!negocios || negocios.length === 0) {
+        // No tiene nada -> A crear el primero
+        return NextResponse.redirect(`${origin}/crear-negocio`)
       } else {
-        // Es nuevo -> Lo mandamos a que cree su primer negocio
-        return NextResponse.redirect(`${origin}/crear-negocio`) // O la ruta que uses para esto
+        // Tiene uno o más -> MANDALO A /ADMIN 
+        // Ahí es donde nuestra página inteligente decidirá si mostrar la lista o entrar directo
+        return NextResponse.redirect(`${origin}/admin`)
       }
+    }
     }
   }
 

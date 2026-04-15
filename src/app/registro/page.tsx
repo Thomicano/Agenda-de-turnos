@@ -69,18 +69,18 @@ export default function RegistroPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-100 p-8 sm:p-10">
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl">
         
         {/* Logo superior */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mb-4">
-            <Calendar className="w-6 h-6 text-indigo-600" />
+          <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-4">
+            <Calendar className="w-6 h-6 text-[#00FF9F]" />
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-black text-white tracking-tight">
             Crear cuenta
           </h1>
-          <p className="text-slate-500 text-sm mt-1 text-center">
+          <p className="text-slate-400 text-sm mt-1 text-center">
             Comenzá a gestionar tus turnos hoy
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function RegistroPage() {
         <button
           type="button"
           onClick={handleGoogleLogin}
-          className="w-full h-11 mb-6 flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all duration-150 active:scale-[0.98]"
+          className="w-full h-11 mb-6 flex items-center justify-center gap-2 bg-white/5 border border-white/10 rounded-xl text-sm font-semibold text-white shadow-sm hover:bg-white/10 transition-all duration-150 active:scale-[0.98]"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -112,18 +112,18 @@ export default function RegistroPage() {
         </button>
 
         <div className="flex items-center gap-4 mb-6">
-          <div className="h-px bg-slate-200 flex-1"></div>
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+          <div className="h-px bg-white/10 flex-1"></div>
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
             O continuar con email
           </span>
-          <div className="h-px bg-slate-200 flex-1"></div>
+          <div className="h-px bg-white/10 flex-1"></div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           
           {/* Email */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-sm font-semibold text-slate-300">
               Email
             </label>
             <div className="relative">
@@ -135,14 +135,14 @@ export default function RegistroPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
                 disabled={isSubmitting}
-                className="w-full h-11 pl-10 pr-4 rounded-xl text-sm text-slate-900 bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all duration-150"
+                className="input-base w-full pl-10 pr-4 h-11"
               />
             </div>
           </div>
 
           {/* Password */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-sm font-semibold text-slate-300">
               Contraseña
             </label>
             <div className="relative">
@@ -154,14 +154,14 @@ export default function RegistroPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 disabled={isSubmitting}
-                className="w-full h-11 pl-10 pr-4 rounded-xl text-sm text-slate-900 bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all duration-150"
+                className="input-base w-full pl-10 pr-4 h-11"
               />
             </div>
           </div>
 
           {/* Confirmar Password */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-sm font-semibold text-slate-300">
               Confirmar Contraseña
             </label>
             <div className="relative">
@@ -173,7 +173,7 @@ export default function RegistroPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
                 disabled={isSubmitting}
-                className="w-full h-11 pl-10 pr-4 rounded-xl text-sm text-slate-900 bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all duration-150"
+                className="input-base w-full pl-10 pr-4 h-11"
               />
             </div>
           </div>
@@ -182,7 +182,7 @@ export default function RegistroPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full h-12 mt-2 rounded-2xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 flex items-center justify-center gap-2 shadow-sm transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98]"
+            className="w-full h-12 mt-2 rounded-xl text-sm font-bold text-black bg-gradient-to-br from-[#00FF9F] to-[#008080] hover:opacity-90 flex items-center justify-center gap-2 shadow-sm transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98]"
           >
             {isSubmitting ? (
               <>
@@ -195,9 +195,9 @@ export default function RegistroPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-500 mt-6">
+        <p className="text-center text-sm text-slate-400 mt-6">
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="text-indigo-600 hover:text-indigo-500 font-semibold transition-colors">
+          <Link href="/login" className="text-[#00FF9F] hover:text-[#00FF9F]/80 font-semibold transition-colors">
             Iniciar sesión
           </Link>
         </p>

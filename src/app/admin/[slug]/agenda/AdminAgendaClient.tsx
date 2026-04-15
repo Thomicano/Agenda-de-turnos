@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Scissors, User } from "lucide-react";
-
+import { Clock, Scissors, User, Calendar as CalendarIcon, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
+import { AdminPageLayout } from "@/components/admin/AdminPageLayout";
 type Turno = {
   id: string;
   hora: string;
@@ -20,240 +20,180 @@ type Turno = {
 };
 
 export default function AdminAgendaClient() {
-
   const params = useParams();
-
-  const rawSlug = params?.slug;
-  const slug =
-    typeof rawSlug === "string"
-      ? rawSlug
-      : Array.isArray(rawSlug)
-        ? rawSlug[0]
-        : undefined;
-
-  const slugValido =
-    typeof slug === "string" &&
-    slug.trim().length > 0 &&
-    slug !== "undefined" &&
-    slug !== "null";
+  const slug = typeof params?.slug === "string" ? params.slug : undefined;
 
   const [fecha, setFecha] = useState("");
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [negocioId, setNegocioId] = useState<string | null>(null);
-  console.log({ slug, slugValido, negocioId, fecha });
+  const [nombreMes, setNombreMes] = useState("");
 
+  // 1. Efecto inicial para la fecha de hoy
   useEffect(() => {
-  const hoy = new Date().toISOString().split("T")[0];
-  setFecha(hoy);
-}, []);
-  useEffect(() => {
-    if (!slugValido) return;
+    const hoy = new Date();
+    setFecha(hoy.toISOString().split("T")[0]);
+    setNombreMes(hoy.toLocaleDateString('es-AR', { month: 'long', day: 'numeric' }));
+  }, []);
 
+  // 2. Cargar Negocio
+  useEffect(() => {
+    if (!slug) return;
     const cargarNegocio = async () => {
-      const { data } = await supabase
-        .from("negocios")
-        .select("id")
-        .eq("slug", slug as string)
-        .single();
-
+      const { data } = await supabase.from("negocios").select("id").eq("slug", slug).single();
       if (data) setNegocioId(data.id);
     };
-
     cargarNegocio();
-  }, [slug, slugValido]);
-  
+  }, [slug]);
+
+  // 3. Cargar Turnos (Lógica central)
   const cargarTurnos = async () => {
-  if (!negocioId || !fecha) return;
-
-  // Convertimos la fecha al formato que Supabase ama: YYYY-MM-DD
-  // Si 'fecha' viene como "17/03/2026", lo transformamos
-  let fechaISO = fecha;
-  if (typeof fecha === 'string' && fecha.includes('/')) {
-    const [dia, mes, anio] = fecha.split('/');
-    fechaISO = `${anio}-${mes}-${dia}`;
-  }
-
-  console.log("Consultando turnos para:", fechaISO);
-
-  const { data, error } = await supabase
-    .from("turnos")
-    .select(`
-      id,
-      hora,
-      estado,
-      cliente_nombre,
-      servicios ( nombre ) 
-    `)
-    .eq("negocio_id", negocioId)
-    .eq("fecha", fechaISO)
-    .order("hora", { ascending: true });
-
-  if (error) {
-    console.error("Error detallado:", error);
-  } else {
-    console.log("¡Éxito! Turnos traídos:", data);
-    setTurnos(data || []);
-  }
-};
-
-  useEffect(() => {
-  // 1. Si todavía no cargó la fecha o el negocio, no hacemos nada
     if (!negocioId || !fecha) return;
-
-  // 2. Cargamos la lista de turnos normal
-    cargarTurnos();
-
-    console.log("⏳ [REALTIME] Intentando prender la antena...");
-
-  // 3. Prendemos la antena de Supabase
-  const channel = supabase
-    .channel("agenda-realtime")
-    .on(
-      "postgres_changes",
-      {
-        event: "*", 
-        schema: "public",
-        table: "turnos",
-      },
-      (payload) => {
-        console.log("🚨 [REALTIME] ¡Llegó un cambio desde Supabase!", payload);
-        cargarTurnos(); // Volvemos a pedir los datos frescos
-      }
-    )
-    .subscribe((status) => {
-      console.log("🔌 [REALTIME] Estado de la conexión:", status);
-    });
-
-  // 4. Apagamos la antena al salir de la página
-  return () => {
-    console.log("🧹 [REALTIME] Apagando antena...");
-    supabase.removeChannel(channel);
-  };
-}, [fecha, negocioId]);
-
-  const cambiarEstado = async (turnoId: number, nuevoEstado: string) => {
-    console.log(`Intentando cambiar el turno ${turnoId} a estado: ${nuevoEstado}`);
-
-  // 1. Le decimos a Supabase que actualice el dato
     const { data, error } = await supabase
       .from("turnos")
-      .update({ estado: nuevoEstado })
-      .eq("id", turnoId)
-      .select(); // El select() nos devuelve la fila actualizada para confirmar que funcionó
+      .select(`id, hora, estado, cliente_nombre, servicios ( nombre )`)
+      .eq("negocio_id", negocioId)
+      .eq("fecha", fecha)
+      .order("hora", { ascending: true });
 
-  // 2. Verificamos si hubo un error en la base de datos
-  if (error) {
-    console.error("❌ Error de Supabase al actualizar:", error);
-    alert("Hubo un error al guardar en la base de datos. Mirá la consola.");
-    return; // Cortamos la ejecución para que la pantalla NO se actualice con una mentira
-  }
-  // 2.5 Verificamos si realmente se actualizó algo
-  if (!data || data.length === 0) {
-    console.error("❌ Supabase no actualizó nada (¿Problema de RLS?)");
-    alert("No se pudo actualizar el turno en la base de datos.");
-    return; // Cortamos acá para que no se actualice la tarjeta mintiendo
-  }
-  console.log("✅ Turno actualizado en la base de datos:", data);
+    if (!error) setTurnos(data || []);
+  };
 
-  // 3. Solo si la base de datos se actualizó bien, cambiamos el color en la pantalla
-  setTurnos((prevTurnos) =>
-    prevTurnos.map((turno) =>
-      turno.id === turnoId ? { ...turno, estado: nuevoEstado } : turno
-    )
-  );
-};
-  if (!slugValido) {
-    return (
-      <p className="text-amber-600">
-        No se encontró el negocio en la URL. Entrá por /admin/[tu-slug]/agenda
-      </p>
-    );
-  }
+  // 4. Realtime y Suscripción
+  useEffect(() => {
+    if (!negocioId || !fecha) return;
+    cargarTurnos();
+
+    const channel = supabase
+      .channel("agenda-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "turnos" }, () => cargarTurnos())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fecha, negocioId]);
+
+  const cambiarEstado = async (turnoId: string, nuevoEstado: string) => {
+    const { error } = await supabase.from("turnos").update({ estado: nuevoEstado }).eq("id", turnoId);
+    if (error) alert("Error al actualizar estado");
+  };
+
+  if (!slug) return <div className="p-10 text-[#00FF9F]">Cargando configuración...</div>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agenda de Turnos</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Revisá y administrá las reservas del día
-          </p>
-        </div>
-        <div className="flex items-center bg-white p-2 rounded-lg shadow-sm border w-full md:w-auto">
+    <AdminPageLayout
+      title="Gestión de Agenda"
+      subtitle={`Turnos programados para el ${fecha.split('-').reverse().join('/')}`}
+    >
+      {/* HEADER DE CONTROL */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+        <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-2 pl-4 rounded-2xl backdrop-blur-xl w-full md:w-auto">
+          <CalendarIcon className="w-5 h-5 text-[#00FF9F]" />
           <Input
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
-            className="border-0 focus-visible:ring-0 shadow-none"
+            className="bg-transparent border-0 text-white focus-visible:ring-0 font-bold uppercase tracking-tighter"
           />
+        </div>
+
+        <div className="flex gap-2">
+          <Badge className="bg-[#00FF9F]/10 text-[#00FF9F] border-[#00FF9F]/20 px-4 py-1 rounded-full">
+            {turnos.length} Turnos hoy
+          </Badge>
         </div>
       </div>
 
+      {/* LISTA DE TURNOS */}
       {turnos.length === 0 ? (
-        <Card className="p-12 text-center border-dashed shadow-sm">
-          <p className="text-muted-foreground">No hay turnos registrados para esta fecha.</p>
+        <Card className="bg-white/5 border-dashed border-white/10 p-20 text-center rounded-3xl">
+          <div className="flex flex-col items-center gap-4">
+            <div className="p-4 bg-white/5 rounded-full text-slate-500">
+              <Clock size={40} />
+            </div>
+            <p className="text-slate-400 font-medium">No hay actividad registrada para este día.</p>
+          </div>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {turnos.map((t) => (
-            <Card key={t.id} className="flex flex-col hover:shadow-md transition-all duration-200 border-gray-200/60">
-              <CardHeader className="pb-3 border-b bg-gray-50/50">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center space-x-2 text-indigo-600">
+            <Card key={t.id} className="group relative bg-white/5 border-white/10 hover:border-[#00FF9F]/30 transition-all duration-500 rounded-3xl overflow-hidden shadow-2xl hover:shadow-[0_0_30px_rgba(0,255,159,0.05)]">
+
+              {/* INDICADOR DE ESTADO LATERAL */}
+              <div className={`absolute left-0 top-0 bottom-0 w-1 ${t.estado === "atendido" ? "bg-emerald-500" :
+                  t.estado === "cancelado" ? "bg-red-500" : "bg-[#00FF9F]"
+                }`} />
+
+              <CardHeader className="pb-3 bg-transparent">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2 text-[#00FF9F]">
                     <Clock className="w-5 h-5" />
-                    <span className="text-2xl font-bold tracking-tighter">{t.hora}</span>
+                    <span className="text-3xl font-black tracking-tighter text-white">{t.hora}</span>
                   </div>
-                  <Badge 
-                    variant={
-                      t.estado === "confirmado" ? "default" : 
-                      t.estado === "cancelado" ? "destructive" : 
-                      "secondary"
-                    }
-                    className={t.estado === "confirmado" ? "bg-emerald-500 hover:bg-emerald-600" : ""}
-                  >
-                    {t.estado.charAt(0).toUpperCase() + t.estado.slice(1)}
+                  <Badge className={`uppercase text-[10px] font-black tracking-widest border-0 ${t.estado === "atendido" ? "bg-emerald-500/20 text-emerald-400" :
+                      t.estado === "cancelado" ? "bg-red-500/20 text-red-400" : "bg-[#00FF9F]/20 text-[#00FF9F]"
+                    }`}>
+                    {t.estado}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="pt-5 flex-grow space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-indigo-50 rounded-full text-indigo-500">
+
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-center space-x-3 bg-white/5 p-3 rounded-2xl border border-white/5">
+                  <div className="p-2 bg-[#00FF9F]/10 rounded-xl text-[#00FF9F]">
                     <User className="w-4 h-4" />
                   </div>
-                  <span className="font-semibold text-foreground text-lg">{t.cliente_nombre}</span>
+                  <span className="font-bold text-white text-lg tracking-tight">{t.cliente_nombre}</span>
                 </div>
-                <div className="flex items-center space-x-3 text-muted-foreground bg-gray-50/80 p-3 rounded-md border border-gray-100">
-                  <Scissors className="w-4 h-4 text-gray-400" />
+
+                <div className="flex items-center space-x-3 text-slate-400 pl-2">
+                  <Scissors className="w-4 h-4 text-[#00FF9F]/50" />
                   <span className="text-sm font-medium">
                     {/* @ts-ignore */}
-                    {t.servicios?.[0]?.nombre || t.servicios?.nombre || 'Servicio sin nombre'}
+                    {t.servicios?.[0]?.nombre || t.servicios?.nombre || 'Servicio General'}
                   </span>
                 </div>
               </CardContent>
-              {t.estado === "confirmado" && (
-                <CardFooter className="pt-4 border-t bg-gray-50/30 flex gap-3 w-full justify-end">
+
+              <CardFooter className="pt-4 border-t border-white/5 bg-white/[0.02] flex flex-wrap gap-2">
+                {/* Botón ATENDIDO - Solo si no está atendido */}
+                {t.estado !== "atendido" && (
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-[#00FF9F] text-black font-black hover:bg-[#00FF9F]/80 rounded-xl transition-all"
+                    onClick={() => cambiarEstado(t.id, "atendido")}
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-2" /> Atendido
+                  </Button>
+                )}
+
+                {/* Botón RE-ABRIR - Si está atendido o cancelado */}
+                {(t.estado === "atendido" || t.estado === "cancelado") && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="w-full sm:w-auto font-medium"
-                    onClick={() => cambiarEstado(t.id, "atendido")}
+                    className="flex-1 border-[#00FF9F]/30 text-[#00FF9F] hover:bg-[#00FF9F]/10 rounded-xl transition-all"
+                    onClick={() => cambiarEstado(t.id, "confirmado")} // Usamos 'confirmado' que es el estado inicial
                   >
-                    Marcar Atendido
+                    <Clock className="w-4 h-4 mr-2" /> Re-abrir
                   </Button>
+                )}
+
+                {/* Botón CANCELAR - Siempre disponible si no está cancelado */}
+                {t.estado !== "cancelado" && (
                   <Button
                     size="sm"
-                    variant="destructive"
-                    className="w-full sm:w-auto font-medium"
+                    variant="ghost"
+                    className="text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
                     onClick={() => cambiarEstado(t.id, "cancelado")}
                   >
-                    Cancelar
+                    <XCircle className="w-4 h-4 mr-2" /> Cancelar
                   </Button>
-                </CardFooter>
-              )}
+                )}
+              </CardFooter>
             </Card>
           ))}
         </div>
-      )}
-    </div>
+      )
+      }
+    </AdminPageLayout >
   );
 }

@@ -169,25 +169,27 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
     <AdminPageLayout title="Configuración" subtitle="Personalizá el ADN de tu negocio">
 
       {/* NAVEGACIÓN DE TABS - CYBER STYLE */}
-      <div className="flex gap-2 p-1.5 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl mb-10 w-fit">
-        {[
-          { id: "general", label: "Identidad", icon: Store },
-          { id: "share", label: "Difusión", icon: Share2 },
-          { id: "staff", label: labelStaff, icon: iconStaff },
-          { id: "horarios", label: "Horarios", icon: Clock },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-300 ${activeTab === tab.id
-              ? "bg-[#00FF9F] text-black font-black shadow-[0_0_20px_rgba(0,255,159,0.3)]"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-              }`}
-          >
-            <tab.icon size={18} />
-            <span className="text-xs uppercase tracking-widest">{tab.label}</span>
-          </button>
-        ))}
+      <div className="w-full overflow-x-auto pb-4 mb-10 custom-scrollbar">
+        <div className="flex gap-2 p-1.5 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl w-max">
+          {[
+            { id: "general", label: "Identidad", icon: Store },
+            { id: "share", label: "Difusión", icon: Share2 },
+            { id: "staff", label: labelStaff, icon: iconStaff },
+            { id: "horarios", label: "Horarios", icon: Clock },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-300 ${activeTab === tab.id
+                ? "bg-[#00FF9F] text-black font-black shadow-[0_0_20px_rgba(0,255,159,0.3)]"
+                : "text-slate-400 hover:text-white hover:bg-white/5"
+                }`}
+            >
+              <tab.icon size={18} />
+              <span className="text-xs uppercase tracking-widest">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -218,9 +220,10 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                     * Cambiar el rubro ajustará automáticamente algunas funciones de tu panel.
                   </p>
                 </div>
-                <div className="flex flex-col md:flex-row items-center gap-10">
-                  <div className="relative h-32 w-32 rounded-full bg-black/40 border-2 border-dashed border-[#00FF9F]/30 overflow-hidden group shadow-[0_0_15px_rgba(0,255,159,0.1)]">
-                    {negocio?.logo_url ? <img src={negocio.logo_url} className="h-full w-full object-cover" /> : <Camera className="m-auto mt-10 text-slate-500" />}
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-10">
+                  <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-full bg-black/40 border-2 border-dashed border-[#00FF9F]/30 overflow-hidden group shadow-[0_0_15px_rgba(0,255,159,0.1)] shrink-0">
+                    {negocio?.logo_url ? <img src={negocio.logo_url} className="h-full w-full object-cover" /> : <Camera className="m-auto mt-9 md:mt-10 text-slate-500" />
+    )}
                     <label className="absolute inset-0 bg-[#00FF9F]/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-all duration-300">
                       <Plus className="text-black mb-1" size={24} />
                       <span className="text-black text-[9px] font-black uppercase tracking-tighter">Cambiar</span>
@@ -228,35 +231,36 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                     </label>
                   </div>
 
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                  {/* Formulario: En tablets (sm) ya podemos usar 2 columnas, en celu 1 sola */}
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Nombre Comercial</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2 tracking-widest">Nombre Comercial</label>
                       <Input
-                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-12"
+                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-11 md:h-12 text-sm"
                         value={negocio?.nombre || ""}
                         onChange={(e) => setNegocio({ ...negocio, nombre: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Dirección Física</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2 tracking-widest">Dirección Física</label>
                       <Input
-                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-12"
+                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-11 md:h-12 text-sm"
                         value={negocio?.direccion || ""}
                         onChange={(e) => setNegocio({ ...negocio, direccion: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">WhatsApp / Tel</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2 tracking-widest">WhatsApp / Tel</label>
                       <Input
-                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-12"
+                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-11 md:h-12 text-sm"
                         value={negocio?.telefono || ""}
                         onChange={(e) => setNegocio({ ...negocio, telefono: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Email</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-2 tracking-widest">Email</label>
                       <Input
-                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-12"
+                        className="bg-black/20 border-white/10 text-white focus:border-[#00FF9F]/50 h-11 md:h-12 text-sm"
                         value={negocio?.email || ""}
                         onChange={(e) => setNegocio({ ...negocio, email: e.target.value })}
                       />
@@ -391,8 +395,8 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
               </CardHeader>
               <CardContent className="pt-6 space-y-3">
                 {horarios.map((dia) => (
-                  <div key={dia.dia_semana} className={`flex items-center justify-between p-4 rounded-2xl transition-all ${dia.esta_abierto ? "bg-white/5 border border-[#00FF9F]/20" : "bg-black/20 opacity-40"}`}>
-                    <div className="flex items-center gap-4">
+                  <div key={dia.dia_semana} className={`flex flex-col sm:flex-row items-center justify-between p-4 rounded-2xl transition-all gap-4 ${dia.esta_abierto ? "bg-white/5 border border-[#00FF9F]/20" : "bg-black/20 opacity-40"}`}>
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
                       <Switch
                         checked={dia.esta_abierto}
                         className="data-[state=checked]:bg-[#00FF9F]"
@@ -402,10 +406,22 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                         {NOMBRES_DIAS[dia.dia_semana]}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Input type="time" className="bg-black/40 border-white/10 text-white w-28 h-9 text-center font-mono" value={dia.hora_apertura} disabled={!dia.esta_abierto} onChange={(e) => actualizarDia(dia.dia_semana, "hora_apertura", e.target.value)} />
-                      <ArrowRight size={14} className="text-slate-600" />
-                      <Input type="time" className="bg-black/40 border-white/10 text-white w-28 h-9 text-center font-mono" value={dia.hora_cierre} disabled={!dia.esta_abierto} onChange={(e) => actualizarDia(dia.dia_semana, "hora_cierre", e.target.value)} />
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                      <Input
+                        type="time"
+                        className="bg-black/40 border-white/10 text-white flex-1 sm:w-28 h-9 text-center font-mono text-xs"
+                        value={dia.hora_apertura}
+                        disabled={!dia.esta_abierto}
+                        onChange={(e) => actualizarDia(dia.dia_semana, "hora_apertura", e.target.value)}
+                      />
+                      <ArrowRight size={14} className="text-slate-600 shrink-0" />
+                      <Input
+                        type="time"
+                        className="bg-black/40 border-white/10 text-white flex-1 sm:w-28 h-9 text-center font-mono text-xs"
+                        value={dia.hora_cierre}
+                        disabled={!dia.esta_abierto}
+                        onChange={(e) => actualizarDia(dia.dia_semana, "hora_cierre", e.target.value)}
+                      />
                     </div>
                   </div>
                 ))}

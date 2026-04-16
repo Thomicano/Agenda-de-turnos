@@ -274,10 +274,37 @@ export default function ReservarTurno({ slug }: ReservarTurnoProps) {
         estado: "confirmado",
       };
 
-      const { error } = await supabase.from('turnos').insert([reserva]);
+      // 1. Insertamos y pedimos el cancel_token de vuelta
+      const { data: turnoCreado, error } = await supabase
+        .from('turnos')
+        .insert([reserva])
+        .select('cancel_token') // <--- CLAVE: Traemos el token generado
+        .single();
+
       if (error) throw error;
-      setPaso(5); // Cambio al paso de éxito
+
+      // 2. Si el turno se creó, disparamos el mail de Resend
+      if (turnoCreado?.cancel_token) {
+        try {
+          await fetch('/api/send-confirmation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: emailCliente,
+              nombreCliente: nombreCliente,
+              nombreNegocio: negocio?.nombre,
+              fecha: `${fechaString} a las ${horarioSeleccionado}`,
+              token: turnoCreado.cancel_token
+            })
+          });
+        } catch (mailErr) {
+          console.error("Error al enviar el mail, pero el turno se guardó:", mailErr);
+        }
+      }
+
+      setPaso(5); // Ir a la pantalla de éxito
     } catch (error) {
+      console.error(error);
       alert("Hubo un error al confirmar tu turno. Intenta de nuevo.");
     } finally {
       setReservando(false);

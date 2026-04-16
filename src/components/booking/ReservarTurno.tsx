@@ -31,10 +31,14 @@ type Servicio = {
 };
 
 type DiaHorario = {
-  dia: string;
-  activo: boolean;
-  desde: string;
-  hasta: string;
+  dia?: string;
+  dia_semana?: number; // Para compatibilidad con el Admin
+  activo?: boolean;
+  esta_abierto?: boolean; // El que te está pidiendo Vercel
+  desde?: string;
+  hora_apertura?: string;
+  hasta?: string;
+  hora_cierre?: string;
 };
 
 type Profesional = {

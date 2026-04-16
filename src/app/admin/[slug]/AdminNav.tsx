@@ -55,7 +55,8 @@ export default function AdminNav() {
           className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[#00FF9F] transition-all font-bold"
         >
           <Home className="w-5 h-5 flex-shrink-0" />
-          {!isCollapsed && <span className="whitespace-nowrap">Volver al inicio</span>}
+          {/* PARCHE 1: En móvil siempre mostramos el texto */}
+          <span className="whitespace-nowrap md:block">Volver al inicio</span>
         </Link>
       ) : (
         links.map((link) => {
@@ -66,28 +67,31 @@ export default function AdminNav() {
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
-              className={`relative flex items-center p-3 rounded-xl transition-all duration-300 group ${isCollapsed ? "justify-center" : "gap-3"
+              className={`relative flex items-center p-3 rounded-xl transition-all duration-300 group ${
+                // PARCHE 2: En móvil (Sheet) siempre usamos gap-3, ignoramos isCollapsed
+                "gap-3 md:gap-3"
                 } ${isActive
                   ? "bg-[#00FF9F]/10 text-[#00FF9F] font-bold shadow-[0_0_20px_rgba(0,255,159,0.05)]"
                   : "text-slate-400 hover:bg-white/5 hover:text-white font-medium"
                 }`}
             >
-              {/* Indicador lateral verde */}
               {isActive && (
                 <div className="absolute left-0 w-1 h-6 bg-[#00FF9F] rounded-r-full shadow-[0_0_10px_#00FF9F]" />
               )}
 
               <Icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-110"}`} />
 
-              {/* Solo mostramos el texto si NO está colapsado */}
-              {!isCollapsed && <span className="whitespace-nowrap animate-in fade-in duration-300">{link.label}</span>}
+              {/* PARCHE 3: El texto siempre se ve en móvil, y en desktop depende de isCollapsed */}
+              <span className={`whitespace-nowrap animate-in fade-in duration-300 ${isCollapsed ? "md:hidden" : "block"
+                } block`}>
+                {link.label}
+              </span>
             </Link>
           );
         })
       )}
     </nav>
   );
-
   return (
     <>
       {/* 📱 Mobile Topbar (Queda exactamente igual) */}

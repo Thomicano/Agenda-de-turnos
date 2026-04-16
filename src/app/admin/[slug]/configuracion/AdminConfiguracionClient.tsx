@@ -296,7 +296,7 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                     <div className="space-y-3">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Página de Reservas (Instagram / WhatsApp)</label>
                       <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="flex-1 bg-black/40 border border-white/10 px-4 py-3 rounded-xl font-mono text-sm text-[#00FF9F] truncate">
+                        <div className="flex-1 bg-black/40 border border-white/10 px-4 py-3 rounded-xl font-mono text-[10px] sm:text-xs md:text-sm text-[#00FF9F] break-all ">
                           {typeof window !== 'undefined' ? `${window.location.origin}/${negocio?.slug}` : ''}
                         </div>
                         <Button
@@ -304,7 +304,7 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                             navigator.clipboard.writeText(`${window.location.origin}/${negocio?.slug}`);
                             toast.success("¡Link de cliente copiado!");
                           }}
-                          className="bg-white/5 hover:bg-[#00FF9F]/20 border border-white/10 text-white rounded-xl px-6 h-11 sm:h-auto"
+                          className="bg-white/5 hover:bg-[#00FF9F]/20 border border-white/10 text-white rounded-xl text-[10px] sm:text-xs md:text-sm px-6 h-11 sm:h-auto"
                         >
                           COPIAR
                         </Button>

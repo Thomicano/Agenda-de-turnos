@@ -222,8 +222,10 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                 </div>
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-10">
                   <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-full bg-black/40 border-2 border-dashed border-[#00FF9F]/30 overflow-hidden group shadow-[0_0_15px_rgba(0,255,159,0.1)] shrink-0">
-                    {negocio?.logo_url ? <img src={negocio.logo_url} className="h-full w-full object-cover" /> : <Camera className="m-auto mt-9 md:mt-10 text-slate-500" />
-    )}
+                    {negocio?.logo_url ? (
+                      <img src={negocio.logo_url} className="h-full w-full object-cover" />
+                    ) : (<Camera className="m-auto mt-9 md:mt-10 text-slate-500" />
+                    )}
                     <label className="absolute inset-0 bg-[#00FF9F]/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-all duration-300">
                       <Plus className="text-black mb-1" size={24} />
                       <span className="text-black text-[9px] font-black uppercase tracking-tighter">Cambiar</span>
@@ -278,7 +280,7 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
           {activeTab === "share" && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <Card className="bg-white/5 border-white/10 rounded-3xl overflow-hidden shadow-2xl">
-                <CardContent className="pt-8 space-y-8">
+                <CardContent className="p-5 md:p-8 space-y-8">
                   <div className="flex items-center gap-4 mb-2">
                     <div className="p-3 bg-[#00FF9F]/10 rounded-2xl text-[#00FF9F]">
                       <Sparkles size={24} />
@@ -293,7 +295,7 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                     {/* Link de Reservas */}
                     <div className="space-y-3">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Página de Reservas (Instagram / WhatsApp)</label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <div className="flex-1 bg-black/40 border border-white/10 px-4 py-3 rounded-xl font-mono text-sm text-[#00FF9F] truncate">
                           {typeof window !== 'undefined' ? `${window.location.origin}/${negocio?.slug}` : ''}
                         </div>
@@ -302,7 +304,7 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                             navigator.clipboard.writeText(`${window.location.origin}/${negocio?.slug}`);
                             toast.success("¡Link de cliente copiado!");
                           }}
-                          className="bg-white/5 hover:bg-[#00FF9F]/20 border border-white/10 text-white rounded-xl px-6"
+                          className="bg-white/5 hover:bg-[#00FF9F]/20 border border-white/10 text-white rounded-xl px-6 h-11 sm:h-auto"
                         >
                           COPIAR
                         </Button>
@@ -312,7 +314,7 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                     {/* Link de Admin */}
                     <div className="space-y-3 pt-4 border-t border-white/5">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Acceso Directo al Panel</label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <div className="flex-1 bg-black/40 border border-white/10 px-4 py-3 rounded-xl font-mono text-xs text-slate-400 truncate">
                           {typeof window !== 'undefined' ? `${window.location.origin}/admin/${negocio?.slug}` : ''}
                         </div>
@@ -321,7 +323,7 @@ export default function AdminConfiguracionClient({ slug }: { slug: string }) {
                             navigator.clipboard.writeText(`${window.location.origin}/admin/${negocio?.slug}`);
                             toast.success("¡Link de admin copiado!");
                           }}
-                          className="bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 rounded-xl px-6"
+                          className="bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 rounded-xl px-6 h-11 sm:h-auto"
                         >
                           COPIAR
                         </Button>

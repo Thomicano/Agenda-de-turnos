@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { 
   Clock, Scissors, User, Plus, Filter, 
   Download, CalendarDays, CheckCircle2, XCircle, Loader2,
-  UserCheck
+  UserCheck,Sparkles, Stethoscope, Dumbbell, CalendarCheck
 } from "lucide-react";
 import { AdminPageLayout } from "@/components/admin/AdminPageLayout";
 import { toast } from "react-hot-toast";
@@ -53,20 +53,31 @@ export default function AdminAgendaClient() {
     profesional_id: "",
     hora: "09:00"
   });
-
+  // 🟢 AGREGÁ ESTO JUNTO A LOS OTROS useState:
+  const [rubroNegocio, setRubroNegocio] = useState<string>("default");  
   const getFechaString = (d: Date) => {
     const offset = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - offset).toISOString().split('T')[0];
   };
   const fechaString = getFechaString(date);
 
+  //ICONOS SEGUN RUBRO
+  const DiccionarioIconos = {
+  peluqueria: Scissors,
+  manicura: Sparkles,     // Sparkles (estrellitas) queda muy bien para estética/uñas
+  medicina: Stethoscope,
+  entrenamiento: Dumbbell,
+  default: CalendarCheck  // Un calendario por si el rubro no coincide con ninguno
+};
+
   // CARGA DE DATOS INICIALES
   useEffect(() => {
     if (!slug) return;
     const init = async () => {
-      const { data: neg } = await supabase.from("negocios").select("id").eq("slug", slug).single();
+      const { data: neg } = await supabase.from("negocios").select("id, rubro").eq("slug", slug).single();
       if (neg) {
         setNegocioId(neg.id);
+        setRubroNegocio(neg.rubro || "default");
         const { data: srv } = await supabase.from("servicios").select("id, nombre").eq("negocio_id", neg.id);
         const { data: prof } = await supabase.from("profesionales").select("id, nombre").eq("negocio_id", neg.id);
         if (srv) {
@@ -260,7 +271,13 @@ export default function AdminAgendaClient() {
                       <div className="flex flex-col overflow-hidden">
                         <span className="text-sm font-black text-white uppercase leading-none truncate">{t.cliente_nombre}</span>
                         <span className="text-[10px] text-slate-500 font-bold mt-1 uppercase flex items-center gap-1 truncate">
-                          <Scissors size={10} className="text-[#00FF9F] flex-shrink-0" /> 
+                          {(() => {
+                            // 1. Buscamos el ícono en el diccionario usando el estado del rubro
+                            const IconoDinamico = DiccionarioIconos[rubroNegocio.toLowerCase() as keyof typeof DiccionarioIconos] || DiccionarioIconos.default;
+                            
+                            // 2. Lo renderizamos
+                            return <IconoDinamico size={10} className="text-[#00FF9F] flex-shrink-0" />;
+                          })()} 
                           <span className="truncate">{t.servicio_nombre}</span>
                         </span>
                       </div>

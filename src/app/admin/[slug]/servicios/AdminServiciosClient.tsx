@@ -7,13 +7,23 @@ import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Scissors, Edit, Trash, Plus, Sparkles } from "lucide-react"; // Agregué Sparkles para el detalle visual
+import { Scissors, Edit, Trash, Plus, Sparkles, Stethoscope, Dumbbell, CalendarCheck } from "lucide-react"; // Agregué Sparkles para el detalle visual
 import { AdminPageLayout } from "@/components/admin/AdminPageLayout";
+
+
+const DiccionarioIconos = {
+   peluqueria: Scissors,
+   manicura: Sparkles,
+   medicina: Stethoscope,
+   entrenamiento: Dumbbell,
+   default: CalendarCheck
+};
 
 // Tipos
 type Negocio = {
   id: string;
   nombre: string;
+  rubro?: string;
 };
 
 type Servicio = {
@@ -73,7 +83,7 @@ export default function AdminServiciosClient({ slug: slugProp }: Props) {
 
     const { data: negocioData, error: negocioError } = await supabase
       .from("negocios")
-      .select("id, nombre")
+      .select("id, nombre, rubro")
       .eq("slug", slug as string)
       .single();
 
@@ -277,7 +287,11 @@ export default function AdminServiciosClient({ slug: slugProp }: Props) {
                       <CardHeader className="pb-3 border-b border-white/10">
                         <div className="flex items-center space-x-3 text-[#00FF9F]">
                           <div className="p-2 bg-[#00FF9F]/10 rounded-lg group-hover:bg-[#00FF9F] group-hover:text-black transition-colors duration-300">
-                            <Scissors className="w-5 h-5" />
+                            {(() => {
+                              const rubroActual = negocio?.rubro?.toLowerCase() || 'default';
+                              const IconoDinamico = DiccionarioIconos[rubroActual as keyof typeof DiccionarioIconos] || DiccionarioIconos.default;
+                              return <IconoDinamico className="w-5 h-5" />;
+                            })()}
                           </div>
                           <span className="text-lg font-bold tracking-tight text-white">{s.nombre}</span>
                         </div>

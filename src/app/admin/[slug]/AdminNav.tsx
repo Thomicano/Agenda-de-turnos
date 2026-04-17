@@ -145,7 +145,7 @@ export default function AdminNav() {
             {isCollapsed ? (
               <div className="flex justify-center w-full">
                 {/* Asegurate de poner el nombre real de tu archivo de logo abajo */}
-                <img src="/logoturnixapp-removebg.png" alt="Logo" className="w-10 h-10 object-contain" />
+                <img src="/logoTurnixapp-removebg.png" alt="Logo" className="w-10 h-10 object-contain" />
               </div>
             ) : (
               <>Turnix<span className="text-[#00FF9F]">App</span></>

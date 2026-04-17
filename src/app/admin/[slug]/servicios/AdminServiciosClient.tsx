@@ -14,6 +14,8 @@ import { AdminPageLayout } from "@/components/admin/AdminPageLayout";
 const DiccionarioIconos = {
    peluqueria: Scissors,
    manicura: Sparkles,
+   
+   estetica: Sparkles,
    medicina: Stethoscope,
    entrenamiento: Dumbbell,
    default: CalendarCheck
